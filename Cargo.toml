@@ -1,0 +1,19 @@
+[package]
+name = "xcompress"
+version = "0.1.0"
+authors = ["Magic Len <len@magiclen.org>"]
+repository = "https://github.com/magiclen/FFmpeg-Screen-Recorder"
+homepage = "https://magiclen.org/xcompress"
+keywords = ["ffmpeg", "cli", "screenrecord"]
+categories = ["command-line-utilities"]
+description= "XCompress is a free file archiver utility on Linux, providing multi-format archiving to ZIP, Z, GZIP, BZ2, XZ, 7Z, TAR and RAR."
+readme = "README.md"
+license = "MIT"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+subprocess = "0.1.13"
+num_cpus = "1.8.0"
+clap = "2.32.0"
