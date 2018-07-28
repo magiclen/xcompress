@@ -7,7 +7,7 @@ XCompress is a free file archiver utility on Linux, providing multi-format archi
 
 ```
 USAGE:
-    xcompress.a [FLAGS] [OPTIONS] [SUBCOMMAND]
+    xcompress [FLAGS] [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
     -p, --password         Sets password for your archive file. (Only supports 7Z, ZIP and RAR)
