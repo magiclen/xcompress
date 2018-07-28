@@ -115,10 +115,28 @@ pub struct Config {
 
 impl Config {
     pub fn from_cli() -> Result<Config, String> {
+        let arg0 = env::args().next().unwrap();
+
+        let examples = vec![
+            "a foo.wav                      # Archives foo.wav to foo.rar",
+            "a foo.wav /root/bar.txt        # Archives foo.wav and /root/bar.txt to foo.rar",
+            "a -o /tmp/out.rar foo.wav      # Archives foo.wav to /tmp/out.rar",
+            "a -b foo/bar                   # Archives foo/bar folder to bar.rar as small as possible",
+            "a -p password foo.wav          # Archives foo.wav to foo.rar with a password",
+            "x foo.rar                      # Extracts foo.rar into current working directory",
+            "x foo.tar.gz /tmp/outfolder    # Extracts foo.tar.gz into /tmp/outfolder",
+            "x -p password foo.rar          # Extracts foo.rar with a password"
+        ];
+
         let matches = App::new(APP_NAME)
             .version(CARGO_PKG_VERSION)
             .author(CARGO_PKG_AUTHORS)
-            .about("XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR and RAR.")
+            .about(format!("XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR and RAR.\n\nEXAMPLES:\n{}", examples.iter()
+                .map(|e| format!("  {} {}\n", arg0, e))
+                .collect::<Vec<String>>()
+                .concat()
+            ).as_str()
+            )
             .arg(Arg::with_name("QUIET")
                 .global(true)
                 .long("quiet")
