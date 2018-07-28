@@ -45,7 +45,7 @@ const DEFAULT_UNRAR_PATH: &str = "unrar";
 
 #[derive(Debug)]
 pub enum Mode {
-    Archive(Box<[String]>, Option<String>),
+    Archive(bool, Vec<String>, Option<String>),
     Extract(String, Option<String>),
 }
 
@@ -132,9 +132,11 @@ impl Config {
                 .help("Uses only one thread.")
             )
             .arg(Arg::with_name("PASSWORD")
+                .global(true)
                 .long("password")
                 .short("p")
                 .help("Sets password for your archive file. (Only supports 7Z, ZIP and RAR)")
+                .takes_value(true)
             )
             .arg(Arg::with_name("COMPRESS_PATH")
                 .global(true)
@@ -300,6 +302,33 @@ impl Config {
                     .required(false)
                     .help("Assigns a destination of your extracted files. It should be a file path.")
                 )
+                .arg(Arg::with_name("OUTPUT_PATH2")
+                    .long("output")
+                    .short("o")
+                    .help("Assigns a destination of your extracted files. It should be a file path.")
+                    .takes_value(true)
+                    .value_name("OUTPUT_PATH")
+                )
+                .after_help("Enjoy it! https://magiclen.org")
+            )
+            .subcommand(SubCommand::with_name("a")
+                .about("Add files to archive.")
+                .arg(Arg::with_name("OUTPUT_PATH")
+                    .long("output")
+                    .short("o")
+                    .help("Assigns a destination of your extracted files. It should be a file path. Specifies the file extension name in order to determine which archive format you want to use. [default archive format: RAR]")
+                    .takes_value(true)
+                )
+                .arg(Arg::with_name("INPUT_PATH")
+                    .required(true)
+                    .help("Assigns the source of your original files. It should be at least one file path.")
+                    .multiple(true)
+                )
+                .arg(Arg::with_name("BEST_COMPRESSION")
+                    .long("best-compression")
+                    .short("b")
+                    .help("If you are OK about the compression and depression time and want to save more disk space and network traffic, it will make the archive file as small as possible.")
+                )
                 .after_help("Enjoy it! https://magiclen.org")
             )
             .after_help("Enjoy it! https://magiclen.org")
@@ -398,12 +427,34 @@ impl Config {
                     let input_path = String::from(path);
 
                     let output_path = sub_matches.value_of("OUTPUT_PATH");
-                    let output_path = match output_path {
+                    let mut output_path = match output_path {
                         Some(p) => {
                             Some(String::from(p))
                         }
                         None => None
                     };
+
+                    let output_path2 = sub_matches.value_of("OUTPUT_PATH2");
+                    let output_path2 = match output_path2 {
+                        Some(p) => {
+                            Some(String::from(p))
+                        }
+                        None => None
+                    };
+
+                    if output_path2 != None {
+                        if output_path != None {
+                            if let Some(ref a) = output_path {
+                                if let Some(ref b) = output_path2 {
+                                    if a.ne(b) {
+                                        return Err(String::from("You input different output paths."));
+                                    }
+                                }
+                            }
+                        } else {
+                            output_path = output_path2;
+                        }
+                    }
 
                     Ok(Mode::Extract(input_path, output_path))
                 }
@@ -414,8 +465,44 @@ impl Config {
                     Err(format!("{} is incorrect.", input_path))
                 }
             }
+        } else if matches.is_present("a") {
+            let sub_matches = matches.subcommand_matches("a").unwrap();
+
+            let input_path = sub_matches.values_of("INPUT_PATH").unwrap();
+
+            let output_path = sub_matches.value_of("OUTPUT_PATH");
+            let mut output_path = match output_path {
+                Some(p) => {
+                    Some(String::from(p))
+                }
+                None => None
+            };
+
+            let best_compression = sub_matches.is_present("BEST_COMPRESSION");
+
+            let mut input_paths = Vec::new();
+
+            for input_path in input_path {
+                let mut path = Path::new(input_path);
+
+                match path.canonicalize() {
+                    Ok(path) => {
+                        let path = path.to_str().unwrap();
+
+                        input_paths.push(String::from(path));
+                    }
+                    Err(ref error) if error.kind() == ErrorKind::NotFound => {
+                        return Err(format!("{} does not exist.", input_path));
+                    }
+                    Err(_) => {
+                        return Err(format!("{} is incorrect.", input_path));
+                    }
+                }
+            }
+
+            Ok(Mode::Archive(best_compression, input_paths, output_path))
         } else {
-            Ok(Mode::Extract(String::from(""), Some(String::from(""))))
+            Err(String::from("Please input a subcommand. Use `help` to see how to use this program."))
         }?;
 
         let paths = ExePaths {
@@ -687,6 +774,22 @@ pub fn run(config: Config) -> Result<i32, String> {
     let quiet = config.quiet;
 
     match config.mode {
+        Mode::Archive(best_compression, input_paths, output_path) => {
+            match output_path {
+                Some(p) => {
+                    archive(paths, quiet, cpus, &password, best_compression, &input_paths, &p)?;
+                }
+                None => {
+                    let current_dir = env::current_dir().unwrap();
+
+                    let input_path = Path::new(&input_paths[0]);
+
+                    let output_path = Path::join(&current_dir, Path::new(&format!("{}.rar", input_path.file_stem().unwrap().to_str().unwrap())));
+
+                    archive(paths, quiet, cpus, &password, best_compression, &input_paths, output_path.to_str().unwrap())?;
+                }
+            }
+        }
         Mode::Extract(input_path, output_path) => {
             match output_path {
                 Some(p) => {
@@ -697,12 +800,64 @@ pub fn run(config: Config) -> Result<i32, String> {
 
                     extract(paths, quiet, cpus, &password, &input_path, current_dir.to_str().unwrap())?;
                 }
-            };
+            }
         }
-        _ => {}
     }
 
     Ok(0)
+}
+
+pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_compression: bool, input_paths: &Vec<String>, output_path: &str) -> Result<i32, String> {
+    let format = match ArchiveFormat::get_archive_format_from_file_path(output_path) {
+        Ok(f) => f,
+        Err(err) => return Err(String::from(err))
+    };
+
+    let output_path_obj = Path::new(output_path);
+
+    let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+
+    let threads = cpus.to_string();
+    let threads = threads.as_str();
+
+    match format {
+        ArchiveFormat::Rar => {
+            let password_arg = format!("-hp{}", create_cli_string(&password));
+            let thread_arg = format!("-mt{}", threads);
+            let mut cmd = vec![paths.rar_path.as_str(), "a", "-ep1"];
+
+            cmd.push(thread_arg.as_str());
+
+            if best_compression {
+                cmd.push("-ma5");
+                cmd.push("-m5");
+                cmd.push("-s");
+            }
+
+            if !password.is_empty() {
+                cmd.push(password_arg.as_str());
+            }
+
+            if quiet {
+                cmd.push("-idq");
+            }
+
+            cmd.push(output_path);
+
+            for input_path in input_paths {
+                cmd.push(input_path);
+            }
+
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path_obj) {
+                    return Err(error.to_string());
+                }
+            }
+
+            execute_one(&cmd, output_folder)
+        }
+        _ => Err(String::from("Cannot handle this format yet."))
+    }
 }
 
 pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_path: &str, output_path: &str) -> Result<i32, String> {
@@ -1328,7 +1483,9 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
 
                 cmd.push(thread_arg.as_str());
 
-                if !password.is_empty() {
+                if password.is_empty() {
+                    cmd.push("-p-");
+                } else {
                     cmd.push(password_arg.as_str());
                 }
 
@@ -1346,7 +1503,9 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
 
             cmd.push(thread_arg.as_str());
 
-            if !password.is_empty() {
+            if password.is_empty() {
+                cmd.push("-p-");
+            } else {
                 cmd.push(password_arg.as_str());
             }
 
@@ -1359,7 +1518,7 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
 
             execute_one(&cmd, output_path)
         }
-        // _ => Ok(0)
+        // _ => Err(String::from("Cannot handle this format yet."))
     }
 }
 
