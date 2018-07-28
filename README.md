@@ -7,14 +7,14 @@ XCompress is a free file archiver utility on Linux, providing multi-format archi
 
 ```
 EXAMPLES:
-  target/debug/xcompress a foo.wav                      # Archives foo.wav to foo.rar
-  target/debug/xcompress a foo.wav /root/bar.txt        # Archives foo.wav and /root/bar.txt to foo.rar
-  target/debug/xcompress a -o /tmp/out.rar foo.wav      # Archives foo.wav to /tmp/out.rar
-  target/debug/xcompress a -b foo/bar                   # Archives foo/bar folder to bar.rar as small as possible
-  target/debug/xcompress a -p password foo.wav          # Archives foo.wav to foo.rar with a password
-  target/debug/xcompress x foo.rar                      # Extracts foo.rar into current working directory
-  target/debug/xcompress x foo.tar.gz /tmp/outfolder    # Extracts foo.tar.gz into /tmp/outfolder
-  target/debug/xcompress x -p password foo.rar          # Extracts foo.rar with a password
+  xcompress a foo.wav                      # Archives foo.wav to foo.rar
+  xcompress a foo.wav /root/bar.txt        # Archives foo.wav and /root/bar.txt to foo.rar
+  xcompress a -o /tmp/out.rar foo.wav      # Archives foo.wav to /tmp/out.rar
+  xcompress a -b foo/bar                   # Archives foo/bar folder to bar.rar as small as possible
+  xcompress a -p password foo.wav          # Archives foo.wav to foo.rar with a password
+  xcompress x foo.rar                      # Extracts foo.rar into current working directory
+  xcompress x foo.tar.gz /tmp/outfolder    # Extracts foo.tar.gz into /tmp/outfolder
+  xcompress x -p password foo.rar          # Extracts foo.rar with a password
 
 USAGE:
     xcompress [FLAGS] [OPTIONS] [SUBCOMMAND]
