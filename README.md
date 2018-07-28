@@ -10,7 +10,6 @@ USAGE:
     xcompress [FLAGS] [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
-    -p, --password         Sets password for your archive file. (Only supports 7Z, ZIP and RAR)
     -q, --quiet            Makes programs not print anything on the screen.
     -s, --single-thread    Uses only one thread.
     -h, --help             Prints help information
@@ -28,6 +27,7 @@ OPTIONS:
         --lunzip-path <LUNZIP_PATH>        Specifies the path of your lunzip executable binary file. [default: lunzip]
         --lzip-path <LZIP_PATH>            Specifies the path of your lzip executable binary file. [default: lzip]
         --lzma-path <LZMA_PATH>            Specifies the path of your lzma executable binary file. [default: lzma]
+    -p, --password <PASSWORD>              Sets password for your archive file. (Only supports 7Z, ZIP and RAR)
         --pbzip2-path <PBZIP2_PATH>        Specifies the path of your pbzip2 executable binary file. [default: pbzip2]
         --pigz-path <PIGZ_PATH>            Specifies the path of your pigz executable binary file. [default: pigz]
         --plzip-path <PLZIP_PATH>          Specifies the path of your plzip executable binary file. [default: plzip]
@@ -42,6 +42,7 @@ OPTIONS:
         --zip-path <ZIP_PATH>              Specifies the path of your zip executable binary file. [default: zip]
 
 SUBCOMMANDS:
+    a       Adds files to archive.
     help    Prints this message or the help of the given subcommand(s)
     x       Extracts files with full path.
 ```

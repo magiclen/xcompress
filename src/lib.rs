@@ -312,7 +312,7 @@ impl Config {
                 .after_help("Enjoy it! https://magiclen.org")
             )
             .subcommand(SubCommand::with_name("a")
-                .about("Add files to archive.")
+                .about("Adds files to archive.")
                 .arg(Arg::with_name("OUTPUT_PATH")
                     .long("output")
                     .short("o")
