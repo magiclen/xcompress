@@ -14,7 +14,7 @@ EXAMPLES:
   xcompress a -p password foo.wav          # Archives foo.wav to foo.rar with a password
   xcompress x foo.rar                      # Extracts foo.rar into current working directory
   xcompress x foo.tar.gz /tmp/outfolder    # Extracts foo.tar.gz into /tmp/outfolder
-  xcompress x -p password foo.rar          # Extracts foo.rar with a password
+  xcompress x -p password foo.rar          # Extracts foo.rar with a password into current working directory
 
 USAGE:
     xcompress [FLAGS] [OPTIONS] [SUBCOMMAND]
