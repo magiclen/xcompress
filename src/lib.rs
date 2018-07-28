@@ -1,3 +1,6 @@
+//! # XCompress
+//! XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR and RAR.
+
 extern crate clap;
 extern crate num_cpus;
 extern crate subprocess;
@@ -115,7 +118,7 @@ impl Config {
         let matches = App::new(APP_NAME)
             .version(CARGO_PKG_VERSION)
             .author(CARGO_PKG_AUTHORS)
-            .about("XCompress is a free file archiver utility on Linux, providing multi-format archiving to ZIP, Z, GZIP, BZ2, XZ, LZ, 7Z, TAR and RAR.")
+            .about("XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR and RAR.")
             .arg(Arg::with_name("QUIET")
                 .global(true)
                 .long("quiet")
