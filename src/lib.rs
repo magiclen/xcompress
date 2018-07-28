@@ -124,8 +124,8 @@ impl Config {
             "a -b foo/bar                   # Archives foo/bar folder to bar.rar as small as possible",
             "a -p password foo.wav          # Archives foo.wav to foo.rar with a password",
             "x foo.rar                      # Extracts foo.rar into current working directory",
-            "x foo.tar.gz /tmp/outfolder    # Extracts foo.tar.gz into /tmp/outfolder",
-            "x -p password foo.rar          # Extracts foo.rar with a password"
+            "x foo.tar.gz /tmp/out_folder    # Extracts foo.tar.gz into /tmp/out_folder",
+            "x -p password foo.rar          # Extracts foo.rar with a password into current working directory"
         ];
 
         let matches = App::new(APP_NAME)
