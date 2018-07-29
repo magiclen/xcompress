@@ -6,7 +6,7 @@ extern crate num_cpus;
 extern crate subprocess;
 
 use std::io::{ErrorKind, Read, BufReader, BufWriter, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::env;
 use std::fs;
 
@@ -330,7 +330,7 @@ impl Config {
                 .after_help("Enjoy it! https://magiclen.org")
             )
             .subcommand(SubCommand::with_name("a")
-                .about("Adds files to archive.")
+                .about("Adds files to archive. Excludes base directory from names. (e.g. add /path/to/folder, you can always get the \"folder\" in the root of the archive file, instead of /path/to/folder.)")
                 .arg(Arg::with_name("OUTPUT_PATH")
                     .long("output")
                     .short("o")
@@ -825,20 +825,70 @@ pub fn run(config: Config) -> Result<i32, String> {
     Ok(0)
 }
 
+// TODO -----Archive END-----
+
 pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_compression: bool, input_paths: &Vec<String>, output_path: &str) -> Result<i32, String> {
     let format = match ArchiveFormat::get_archive_format_from_file_path(output_path) {
         Ok(f) => f,
         Err(err) => return Err(String::from(err))
     };
 
-    let output_path_obj = Path::new(output_path);
-
-    let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+    let output_path_obj = match get_absolute_path(output_path) {
+        Ok(p) => p,
+        Err(error) => return Err(error)
+    };
 
     let threads = cpus.to_string();
     let threads = threads.as_str();
 
     match format {
+        ArchiveFormat::Zip => {
+            let mut cmd = vec![paths.zip_path.as_str(), "-r"];
+
+            if best_compression {
+                cmd.push("-9");
+            }
+
+            if !password.is_empty() {
+                cmd.push("--password");
+                cmd.push(password);
+            }
+
+            if quiet {
+                cmd.push("-q");
+            }
+
+            cmd.push(output_path_obj.to_str().unwrap());
+
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path) {
+                    return Err(error.to_string());
+                }
+            }
+
+            let mut es = 0;
+
+            for input_path in input_paths {
+                let input_path_obj = Path::new(input_path);
+                let file_name = Path::file_name(input_path_obj).unwrap().to_str().unwrap();
+
+                let mut cmd = cmd.clone();
+
+                cmd.push(file_name);
+
+                let input_folder = input_path_obj.parent().unwrap().to_str().unwrap();
+
+                es = match execute_one(&cmd, input_folder) {
+                    Ok(es) => es,
+                    Err(error) => {
+                        try_delete_file(output_path);
+                        return Err(error);
+                    }
+                }
+            }
+
+            Ok(es)
+        }
         ArchiveFormat::Rar => {
             let password_arg = format!("-hp{}", create_cli_string(&password));
             let thread_arg = format!("-mt{}", threads);
@@ -867,16 +917,22 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
             }
 
             if output_path_obj.exists() {
-                if let Err(error) = fs::remove_file(output_path_obj) {
+                if let Err(error) = fs::remove_file(output_path) {
                     return Err(error.to_string());
                 }
             }
+
+            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
 
             execute_one(&cmd, output_folder)
         }
         _ => Err(String::from("Cannot handle this format yet."))
     }
 }
+
+// TODO -----Archive END-----
+
+// TODO -----Extract START-----
 
 pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_path: &str, output_path: &str) -> Result<i32, String> {
     let format = match ArchiveFormat::get_archive_format_from_file_path(input_path) {
@@ -1540,6 +1596,8 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
     }
 }
 
+// TODO -----Extract END-----
+
 fn try_delete_file(file_path: &str) {
     match fs::remove_file(file_path) {
         _ => {}
@@ -1548,6 +1606,35 @@ fn try_delete_file(file_path: &str) {
 
 fn create_cli_string(string: &str) -> String {
     string.replace(" ", "\\ ")
+}
+
+fn get_absolute_path(path: &str) -> Result<PathBuf, String> {
+    let path_obj = Path::new(path);
+
+    match path_obj.canonicalize() {
+        Ok(p) => Ok(p),
+        Err(ref error) if error.kind() == ErrorKind::NotFound => {
+            match fs::File::create(path_obj) {
+                Ok(_) => {
+                    match path_obj.canonicalize() {
+                        Ok(p) => {
+                            if let Err(_) = fs::remove_file(path) {
+                                Err(format!("{} is incorrect.", path))
+                            } else {
+                                Ok(p)
+                            }
+                        }
+                        Err(ref error) if error.kind() == ErrorKind::NotFound => {
+                            Err(format!("{} does not exist.", path))
+                        }
+                        Err(_) => Err(format!("{} is incorrect.", path))
+                    }
+                }
+                Err(_) => Err(format!("{} does not exist.", path))
+            }
+        }
+        Err(_) => Err(format!("{} is incorrect.", path))
+    }
 }
 
 

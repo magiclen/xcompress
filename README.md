@@ -52,7 +52,8 @@ OPTIONS:
         --zip-path <ZIP_PATH>              Specifies the path of your zip executable binary file. [default: zip]
 
 SUBCOMMANDS:
-    a       Adds files to archive.
+    a       Adds files to archive. Excludes base directory from names. (e.g. add /path/to/folder, you can always get
+            the "folder" in the root of the archive file, instead of /path/to/folder.)
     help    Prints this message or the help of the given subcommand(s)
     x       Extracts files with full path.
 ```
