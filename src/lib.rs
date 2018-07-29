@@ -120,7 +120,7 @@ impl Config {
         let examples = vec![
             "a foo.wav                      # Archives foo.wav to foo.rar",
             "a foo.wav /root/bar.txt        # Archives foo.wav and /root/bar.txt to foo.rar",
-            "a -o /tmp/out.rar foo.wav      # Archives foo.wav to /tmp/out.rar",
+            "a -o /tmp/out.7z foo.wav       # Archives foo.wav to /tmp/out.7z",
             "a -b foo/bar                   # Archives foo/bar folder to bar.rar as small as possible",
             "a -p password foo.wav          # Archives foo.wav to foo.rar with a password",
             "x foo.rar                      # Extracts foo.rar into current working directory",
@@ -842,6 +842,40 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
     let threads = threads.as_str();
 
     match format {
+        ArchiveFormat::P7z => {
+            let password_arg = format!("-p{}", create_cli_string(&password));
+            let thread_arg = format!("-mmt{}", threads);
+
+            let mut cmd = vec![paths.p7z_path.as_str(), "a", "-t7z", "-aoa", thread_arg.as_str(), output_path];
+
+            if best_compression {
+                cmd.push("-m0=lzma2");
+                cmd.push("-mx");
+            }
+
+            if !password.is_empty() {
+                cmd.push("-mhe=on");
+                cmd.push(password_arg.as_str());
+            }
+
+            for input_path in input_paths {
+                cmd.push(input_path);
+            }
+
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path) {
+                    return Err(error.to_string());
+                }
+            }
+
+            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+
+            if quiet {
+                execute_one_quiet(&cmd, output_folder)
+            } else {
+                execute_one(&cmd, output_folder)
+            }
+        }
         ArchiveFormat::Zip => {
             let mut cmd = vec![paths.zip_path.as_str(), "-r"];
 

@@ -9,7 +9,7 @@ XCompress is a free file archiver utility on Linux, providing multi-format archi
 EXAMPLES:
   xcompress a foo.wav                      # Archives foo.wav to foo.rar
   xcompress a foo.wav /root/bar.txt        # Archives foo.wav and /root/bar.txt to foo.rar
-  xcompress a -o /tmp/out.rar foo.wav      # Archives foo.wav to /tmp/out.rar
+  xcompress a -o /tmp/out.7z foo.wav       # Archives foo.wav to /tmp/out.7z
   xcompress a -b foo/bar                   # Archives foo/bar folder to bar.rar as small as possible
   xcompress a -p password foo.wav          # Archives foo.wav to foo.rar with a password
   xcompress x foo.rar                      # Extracts foo.rar into current working directory
