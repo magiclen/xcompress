@@ -851,6 +851,7 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
             if best_compression {
                 cmd.push("-m0=lzma2");
                 cmd.push("-mx");
+                cmd.push("-ms=on");
             }
 
             if !password.is_empty() {
