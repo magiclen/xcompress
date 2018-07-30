@@ -4,11 +4,13 @@
 extern crate clap;
 extern crate num_cpus;
 extern crate subprocess;
+extern crate byte_unit;
 
 use std::io::{ErrorKind, Read, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::env;
 use std::fs;
+use byte_unit::*;
 
 use subprocess::{Exec, ExitStatus, PopenError, Pipeline, NullFile};
 
@@ -45,7 +47,7 @@ const DEFAULT_UNRAR_PATH: &str = "unrar";
 
 #[derive(Debug)]
 pub enum Mode {
-    Archive(bool, Vec<String>, Option<String>),
+    Archive(bool, Option<Byte>, Vec<String>, Option<String>),
     Extract(String, Option<String>),
 }
 
@@ -155,6 +157,7 @@ impl Config {
                 .short("p")
                 .help("Sets password for your archive file. (Only supports 7Z, ZIP and RAR)")
                 .takes_value(true)
+                .display_order(0)
             )
             .arg(Arg::with_name("COMPRESS_PATH")
                 .global(true)
@@ -326,26 +329,37 @@ impl Config {
                     .help("Assigns a destination of your extracted files. It should be a file path.")
                     .takes_value(true)
                     .value_name("OUTPUT_PATH")
+                    .display_order(1)
                 )
                 .after_help("Enjoy it! https://magiclen.org")
             )
             .subcommand(SubCommand::with_name("a")
                 .about("Adds files to archive. Excludes base directory from names. (e.g. add /path/to/folder, you can always get the \"folder\" in the root of the archive file, instead of /path/to/folder.)")
-                .arg(Arg::with_name("OUTPUT_PATH")
-                    .long("output")
-                    .short("o")
-                    .help("Assigns a destination of your extracted files. It should be a file path. Specifies the file extension name in order to determine which archive format you want to use. [default archive format: RAR]")
-                    .takes_value(true)
-                )
                 .arg(Arg::with_name("INPUT_PATH")
                     .required(true)
                     .help("Assigns the source of your original files. It should be at least one file path.")
                     .multiple(true)
                 )
+                .arg(Arg::with_name("OUTPUT_PATH")
+                    .long("output")
+                    .short("o")
+                    .help("Assigns a destination of your extracted files. It should be a file path. Specifies the file extension name in order to determine which archive format you want to use. [default archive format: RAR]")
+                    .takes_value(true)
+                    .display_order(1)
+                )
                 .arg(Arg::with_name("BEST_COMPRESSION")
                     .long("best-compression")
                     .short("b")
                     .help("If you are OK about the compression and depression time and want to save more disk space and network traffic, it will make the archive file as small as possible.")
+                    .display_order(1)
+                )
+                .arg(Arg::with_name("SPLIT")
+                    .long("split")
+                    .short("d")
+                    .help("Splits the archive file into volumes with a specified size. The unit of value is byte. You can also use K, M, etc as a suffix. (Only supports 7Z and RAR)")
+                    .takes_value(true)
+                    .value_name("SIZE_OF_EACH_VOLUME")
+                    .display_order(1)
                 )
                 .after_help("Enjoy it! https://magiclen.org")
             )
@@ -518,7 +532,31 @@ impl Config {
                 }
             }
 
-            Ok(Mode::Archive(best_compression, input_paths, output_path))
+            let split = match sub_matches.value_of("SPLIT") {
+                Some(d) => {
+                    match Byte::from_string(d) {
+                        Ok(byte) => {
+                            Some(byte)
+                        }
+                        Err(error) => {
+                            match error {
+                                ByteError::ValueIncorrect => {
+                                    return Err(String::from("The value of your split size is incorrect."));
+                                }
+                                ByteError::UnitIncorrect => {
+                                    return Err(String::from("The unit of your split size is incorrect."));
+                                }
+                                ByteError::ParseError => {
+                                    return Err(String::from("Your split size is incorrect."));
+                                }
+                            }
+                        }
+                    }
+                }
+                None => None
+            };
+
+            Ok(Mode::Archive(best_compression, split, input_paths, output_path))
         } else {
             Err(String::from("Please input a subcommand. Use `help` to see how to use this program."))
         }?;
@@ -792,10 +830,10 @@ pub fn run(config: Config) -> Result<i32, String> {
     let quiet = config.quiet;
 
     match config.mode {
-        Mode::Archive(best_compression, input_paths, output_path) => {
+        Mode::Archive(best_compression, split, input_paths, output_path) => {
             match output_path {
                 Some(p) => {
-                    archive(paths, quiet, cpus, &password, best_compression, &input_paths, &p)?;
+                    archive(paths, quiet, cpus, &password, best_compression, split, &input_paths, &p)?;
                 }
                 None => {
                     let current_dir = env::current_dir().unwrap();
@@ -804,7 +842,7 @@ pub fn run(config: Config) -> Result<i32, String> {
 
                     let output_path = Path::join(&current_dir, Path::new(&format!("{}.rar", input_path.file_stem().unwrap().to_str().unwrap())));
 
-                    archive(paths, quiet, cpus, &password, best_compression, &input_paths, output_path.to_str().unwrap())?;
+                    archive(paths, quiet, cpus, &password, best_compression, split, &input_paths, output_path.to_str().unwrap())?;
                 }
             }
         }
@@ -827,7 +865,7 @@ pub fn run(config: Config) -> Result<i32, String> {
 
 // TODO -----Archive END-----
 
-pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_compression: bool, input_paths: &Vec<String>, output_path: &str) -> Result<i32, String> {
+pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_compression: bool, split: Option<Byte>, input_paths: &Vec<String>, output_path: &str) -> Result<i32, String> {
     let format = match ArchiveFormat::get_archive_format_from_file_path(output_path) {
         Ok(f) => f,
         Err(err) => return Err(String::from(err))
@@ -845,8 +883,9 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
         ArchiveFormat::P7z => {
             let password_arg = format!("-p{}", create_cli_string(&password));
             let thread_arg = format!("-mmt{}", threads);
+            let mut volume = String::from("-v");
 
-            let mut cmd = vec![paths.p7z_path.as_str(), "a", "-t7z", "-aoa", thread_arg.as_str(), output_path];
+            let mut cmd = vec![paths.p7z_path.as_str(), "a", "-t7z", "-aoa", thread_arg.as_str()];
 
             if best_compression {
                 cmd.push("-m0=lzma2");
@@ -858,6 +897,13 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                 cmd.push("-mhe=on");
                 cmd.push(password_arg.as_str());
             }
+
+            if let Some(byte) = split {
+                volume.push_str(&format!("{}b", byte.get_bytes()));
+                cmd.push(&volume);
+            }
+
+            cmd.push(output_path);
 
             for input_path in input_paths {
                 cmd.push(input_path);
@@ -927,6 +973,8 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
         ArchiveFormat::Rar => {
             let password_arg = format!("-hp{}", create_cli_string(&password));
             let thread_arg = format!("-mt{}", threads);
+            let mut volume = String::from("-v");
+
             let mut cmd = vec![paths.rar_path.as_str(), "a", "-ep1"];
 
             cmd.push(thread_arg.as_str());
@@ -943,6 +991,11 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
 
             if quiet {
                 cmd.push("-idq");
+            }
+
+            if let Some(byte) = split {
+                volume.push_str(&format!("{}b", byte.get_bytes()));
+                cmd.push(&volume);
             }
 
             cmd.push(output_path);
@@ -1221,9 +1274,7 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
             let thread_arg = format!("-mmt{}", threads);
             let mut cmd1 = vec![paths.p7z_path.as_str(), "x", "-so", thread_arg.as_str()];
 
-            if !password.is_empty() {
-                cmd1.push(password_arg.as_str());
-            }
+            cmd1.push(password_arg.as_str());
 
             cmd1.push(input_path);
 
@@ -1552,9 +1603,7 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
             let thread_arg = format!("-mmt{}", threads);
             let mut cmd = vec![paths.p7z_path.as_str(), "x", "-aoa", thread_arg.as_str(), output_path_arg.as_str()];
 
-            if !password.is_empty() {
-                cmd.push(password_arg.as_str());
-            }
+            cmd.push(password_arg.as_str());
 
             cmd.push(input_path);
 
