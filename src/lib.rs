@@ -357,7 +357,7 @@ impl Config {
                 .arg(Arg::with_name("SPLIT")
                     .long("split")
                     .short("d")
-                    .help("Splits the archive file into volumes with a specified size. The unit of value is byte. You can also use K, M, etc as a suffix. (Only supports 7Z and RAR)")
+                    .help("Splits the archive file into volumes with a specified size. The unit of value is byte. You can also use K, M, etc as a suffix. (Only supports 7Z, ZIP and RAR)")
                     .takes_value(true)
                     .value_name("SIZE_OF_EACH_VOLUME")
                     .display_order(1)
@@ -644,7 +644,7 @@ impl ArchiveFormat {
             Ok(ArchiveFormat::Tar)
         } else if file_path.ends_with(".z") {
             Ok(ArchiveFormat::Z)
-        } else if file_path.ends_with(".zip") {
+        } else if file_path.ends_with(".zip") || file_path.ends_with(".z01") {
             Ok(ArchiveFormat::Zip)
         } else if file_path.ends_with(".gz") {
             Ok(ArchiveFormat::Gzip)
@@ -925,6 +925,8 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
             }
         }
         ArchiveFormat::Zip => {
+            let mut volume = String::from("");
+
             let mut cmd = vec![paths.zip_path.as_str(), "-r"];
 
             if best_compression {
@@ -938,6 +940,12 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
 
             if quiet {
                 cmd.push("-q");
+            }
+
+            if let Some(byte) = split {
+                volume.push_str(&format!("{}k", byte.get_adjusted_unit(ByteUnit::KiB).get_value().round()));
+                cmd.push("-s");
+                cmd.push(&volume);
             }
 
             cmd.push(output_path_obj.to_str().unwrap());
