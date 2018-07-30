@@ -357,7 +357,7 @@ impl Config {
                 .arg(Arg::with_name("SPLIT")
                     .long("split")
                     .short("d")
-                    .help("Splits the archive file into volumes with a specified size. The unit of value is byte. You can also use K, M, etc as a suffix. (Only supports 7Z, ZIP and RAR)")
+                    .help("Splits the archive file into volumes with a specified size. The unit of value is byte. You can also use K, M, etc as a suffix. (Only supports 7Z and RAR, and ZIP containing a single file.)")
                     .takes_value(true)
                     .value_name("SIZE_OF_EACH_VOLUME")
                     .display_order(1)
@@ -644,7 +644,7 @@ impl ArchiveFormat {
             Ok(ArchiveFormat::Tar)
         } else if file_path.ends_with(".z") {
             Ok(ArchiveFormat::Z)
-        } else if file_path.ends_with(".zip") || file_path.ends_with(".z01") {
+        } else if file_path.ends_with(".zip") {
             Ok(ArchiveFormat::Zip)
         } else if file_path.ends_with(".gz") {
             Ok(ArchiveFormat::Gzip)
@@ -841,7 +841,7 @@ pub fn run(config: Config) -> Result<i32, String> {
 
                     let input_path = Path::new(&input_paths[0]);
 
-                    let output_path = Path::join(&current_dir, Path::new(&format!("{}.rar", input_path.file_stem().unwrap().to_str().unwrap())));
+                    let output_path = Path::join(&current_dir, Path::new(&format!("{}.rar", input_path.file_name().unwrap().to_str().unwrap())));
 
                     archive(paths, quiet, cpus, &password, best_compression, split, &input_paths, output_path.to_str().unwrap())?;
                 }
@@ -925,7 +925,10 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
             }
         }
         ArchiveFormat::Zip => {
-            let mut volume = String::from("");
+            let mut output_path_obj = output_path_obj;
+            let output_folder_obj = output_path_obj.clone();
+            let output_folder_obj = output_folder_obj.parent().unwrap();
+            let output_folder = output_folder_obj.to_str().unwrap();
 
             let mut cmd = vec![paths.zip_path.as_str(), "-r"];
 
@@ -942,11 +945,12 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                 cmd.push("-q");
             }
 
-            if let Some(byte) = split {
-                volume.push_str(&format!("{}k", byte.get_adjusted_unit(ByteUnit::KiB).get_value().round()));
-                cmd.push("-s");
-                cmd.push(&volume);
-            }
+            output_path_obj = if let Some(_) = &split {
+                let new_filename = format!("{}.tmp.zip", output_path_obj.file_stem().unwrap().to_str().unwrap());
+                Path::join(&output_folder_obj, Path::new(&new_filename))
+            } else {
+                output_path_obj
+            };
 
             cmd.push(output_path_obj.to_str().unwrap());
 
@@ -972,6 +976,54 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                     Ok(es) => es,
                     Err(error) => {
                         try_delete_file(output_path);
+                        return Err(error);
+                    }
+                }
+            }
+
+            if let Some(byte) = split {
+                let mut volume = String::from("");
+                let new_output_path_obj;
+
+                let mut cmd = vec![paths.zip_path.as_str()];
+
+                if best_compression {
+                    cmd.push("-9");
+                }
+
+                if !password.is_empty() {
+                    cmd.push("--password");
+                    cmd.push(password);
+                }
+
+                if quiet {
+                    cmd.push("-q");
+                }
+
+                cmd.push("-s");
+                volume.push_str(format!("{}k", byte.get_adjusted_unit(ByteUnit::KiB).get_value().round()).as_str());
+                cmd.push(&volume);
+
+                cmd.push(output_path_obj.to_str().unwrap());
+
+                cmd.push("--out");
+
+                let filename = output_path_obj.file_stem().unwrap().to_str().unwrap();
+                let new_filename = format!("{}.zip", &filename[0..filename.len() - 4]);
+                new_output_path_obj = Path::join(&output_folder_obj, new_filename);
+                let output_path = output_path_obj.to_str().unwrap();
+                let new_output_path = new_output_path_obj.to_str().unwrap();
+
+                cmd.push(new_output_path);
+
+                es = match execute_one(&cmd, output_folder) {
+                    Ok(es) => {
+                        try_delete_file(output_path);
+                        es
+                    }
+                    Err(error) => {
+                        try_delete_file(output_path);
+                        try_delete_file(new_output_path);
                         return Err(error);
                     }
                 }
