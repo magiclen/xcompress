@@ -357,7 +357,7 @@ impl Config {
                 .arg(Arg::with_name("SPLIT")
                     .long("split")
                     .short("d")
-                    .help("Splits the archive file into volumes with a specified size. The unit of value is byte. You can also use K, M, etc as a suffix. (Only supports 7Z, ZIP and RAR.)")
+                    .help("Splits the archive file into volumes with a specified size. The unit of value is byte. You can also use KB, MB, KiB, MiB, etc, as a suffix. The minimum volume is 64 KiB. (Only supports 7Z, ZIP and RAR.)")
                     .takes_value(true)
                     .value_name("SIZE_OF_EACH_VOLUME")
                     .display_order(1)
@@ -537,6 +537,9 @@ impl Config {
                 Some(d) => {
                     match Byte::from_string(d) {
                         Ok(byte) => {
+                            if byte.get_bytes() < 65536 {
+                                return Err(String::from("Your split size is too small."));
+                            }
                             Some(byte)
                         }
                         Err(error) => {
@@ -900,7 +903,11 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
             }
 
             if let Some(byte) = split {
-                volume.push_str(&format!("{}b", byte.get_bytes()));
+                if byte.get_bytes() < 65536 {
+                    volume.push_str("65536b");
+                } else {
+                    volume.push_str(format!("{}k", byte.get_adjusted_unit(ByteUnit::KiB).get_value().round() as u32).as_str());
+                }
                 cmd.push(&volume);
             }
 
@@ -1001,7 +1008,11 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                 }
 
                 cmd.push("-s");
-                volume.push_str(format!("{}k", byte.get_adjusted_unit(ByteUnit::KiB).get_value().round()).as_str());
+                if byte.get_bytes() < 65536 {
+                    volume.push_str("64k");
+                } else {
+                    volume.push_str(format!("{}k", byte.get_adjusted_unit(ByteUnit::KiB).get_value().round() as u32).as_str());
+                }
                 cmd.push(&volume);
 
                 cmd.push(output_path_obj.to_str().unwrap());
@@ -1055,7 +1066,11 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
             }
 
             if let Some(byte) = split {
-                volume.push_str(&format!("{}b", byte.get_bytes()));
+                if byte.get_bytes() < 65536 {
+                    volume.push_str("64k");
+                } else {
+                    volume.push_str(format!("{}k", byte.get_adjusted_unit(ByteUnit::KiB).get_value().round() as u32).as_str());
+                }
                 cmd.push(&volume);
             }
 
