@@ -929,6 +929,63 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
     let threads = threads.as_str();
 
     match format {
+        ArchiveFormat::Lzma => {
+            if input_paths.len() > 1 {
+                return Err(String::from("Obviously, you should use .tar.lzma for filename extension to support multiple files."));
+            }
+
+            let input_path = &input_paths[0];
+
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path) {
+                    return Err(error.to_string());
+                }
+            }
+
+            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+
+            if cpus > 1 {
+                if let Ok(_) = check_executable(&vec![paths.pxz_path.as_str(), "-V"]) {
+                    let mut cmd = vec![paths.pxz_path.as_str(), "-z", "-c", "-T", threads, "-F", "lzma", input_path];
+
+                    if !quiet {
+                        cmd.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd.push("-9");
+                    }
+
+                    match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+
+            let mut cmd = vec![paths.lzma_path.as_str(), "-z", "-c", "-T", threads, input_path];
+
+            if !quiet {
+                cmd.push("-q");
+            }
+
+            if best_compression {
+                cmd.push("-9");
+            }
+
+            match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                Ok(_) => {
+                    return Ok(0);
+                }
+                Err(error) => {
+                    return Err(error);
+                }
+            }
+        }
         ArchiveFormat::P7z => {
             let password_arg = format!("-p{}", create_cli_string(&password));
             let thread_arg = format!("-mmt{}", threads);
@@ -1132,6 +1189,51 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
             }
 
             let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+
+            execute_one(&cmd, output_folder)
+        }
+        ArchiveFormat::Zstd => {
+            if input_paths.len() > 1 {
+                return Err(String::from("Obviously, you should use .tar.zst for filename extension to support multiple files."));
+            }
+
+            let input_path = &input_paths[0];
+
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path) {
+                    return Err(error.to_string());
+                }
+            }
+
+            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+
+            if cpus > 1 {
+                if let Ok(_) = check_executable(&vec![paths.pzstd_path.as_str(), "-V"]) {
+                    let mut cmd = vec![paths.pzstd_path.as_str(), "-p", threads, input_path, "-o", output_path];
+
+                    if !quiet {
+                        cmd.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd.push("-19");
+                    }
+
+                    return execute_one(&cmd, output_folder);
+                }
+            }
+
+            let thread_arg = format!("-T{}", threads);
+
+            let mut cmd = vec![paths.zstd_path.as_str(), thread_arg.as_str(), input_path, "-o", output_path];
+
+            if !quiet {
+                cmd.push("-q");
+            }
+
+            if best_compression {
+                cmd.push("-19");
+            }
 
             execute_one(&cmd, output_folder)
         }
