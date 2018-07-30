@@ -638,7 +638,7 @@ impl ArchiveFormat {
             Ok(ArchiveFormat::TarXz)
         } else if file_path.ends_with(".tar.lzma") || file_path.ends_with(".tlz") {
             Ok(ArchiveFormat::TarLzma)
-        } else if file_path.ends_with(".tar.7z") || file_path.ends_with(".t7z") {
+        } else if file_path.ends_with(".tar.7z") || file_path.ends_with(".tar.7z.001") || file_path.ends_with(".t7z") {
             Ok(ArchiveFormat::Tar7z)
         } else if file_path.ends_with(".tar") {
             Ok(ArchiveFormat::Tar)
@@ -656,7 +656,7 @@ impl ArchiveFormat {
             Ok(ArchiveFormat::Xz)
         } else if file_path.ends_with(".lzma") {
             Ok(ArchiveFormat::Lzma)
-        } else if file_path.ends_with(".7z") {
+        } else if file_path.ends_with(".7z") || file_path.ends_with(".7z.001") {
             Ok(ArchiveFormat::P7z)
         } else if file_path.ends_with(".rar") {
             Ok(ArchiveFormat::Rar)
