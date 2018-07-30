@@ -1,7 +1,7 @@
 XCompress
 ====================
 
-XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR and RAR.
+XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR, RAR and ZSTD.
 
 ## Help
 
@@ -42,14 +42,17 @@ OPTIONS:
         --pigz-path <PIGZ_PATH>            Specifies the path of your pigz executable binary file. [default: pigz]
         --plzip-path <PLZIP_PATH>          Specifies the path of your plzip executable binary file. [default: plzip]
         --pxz-path <PXZ_PATH>              Specifies the path of your pxz executable binary file. [default: pxz]
+        --pzstd-path <PZSTD_PATH>          Specifies the path of your pzstd executable binary file. [default: pzstd]
         --rar-path <RAR_PATH>              Specifies the path of your rar executable binary file. [default: rar]
         --tar-path <TAR_PATH>              Specifies the path of your tar executable binary file. [default: tar]
         --unlzma-path <UNLZMA_PATH>        Specifies the path of your unlzma executable binary file. [default: unlzma]
         --unrar-path <UNRAR_PATH>          Specifies the path of your unrar executable binary file. [default: unrar]
         --unxz-path <UNXZ_PATH>            Specifies the path of your unxz executable binary file. [default: unxz]
         --unzip-path <UNZIP_PATH>          Specifies the path of your unzip executable binary file. [default: unzip]
+        --unzstd-path <UNZSTD_PATH>        Specifies the path of your unzstd executable binary file. [default: unzstd]
         --xz-path <XZ_PATH>                Specifies the path of your xz executable binary file. [default: xz]
         --zip-path <ZIP_PATH>              Specifies the path of your zip executable binary file. [default: zip]
+        --zstd-path <ZSTD_PATH>            Specifies the path of your zstd executable binary file. [default: zstd]
 
 SUBCOMMANDS:
     a       Adds files to archive. Excludes base directory from names. (e.g. add /path/to/folder, you can always get
