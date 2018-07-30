@@ -118,6 +118,7 @@ pub struct Config {
 impl Config {
     pub fn from_cli() -> Result<Config, String> {
         let arg0 = env::args().next().unwrap();
+        let arg0 = Path::new(&arg0).file_stem().unwrap().to_str().unwrap();
 
         let examples = vec![
             "a foo.wav                      # Archives foo.wav to foo.rar",

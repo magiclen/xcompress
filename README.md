@@ -13,7 +13,7 @@ EXAMPLES:
   xcompress a -b foo/bar                   # Archives foo/bar folder to bar.rar as small as possible
   xcompress a -p password foo.wav          # Archives foo.wav to foo.rar with a password
   xcompress x foo.rar                      # Extracts foo.rar into current working directory
-  xcompress x foo.tar.gz /tmp/outfolder    # Extracts foo.tar.gz into /tmp/outfolder
+  xcompress x foo.tar.gz /tmp/out_folder   # Extracts foo.tar.gz into /tmp/out_folder
   xcompress x -p password foo.rar          # Extracts foo.rar with a password into current working directory
 
 USAGE:
@@ -26,6 +26,7 @@ FLAGS:
     -V, --version          Prints version information
 
 OPTIONS:
+    -p, --password <PASSWORD>              Sets password for your archive file. (Only supports 7Z, ZIP and RAR)
         --7z-path <7Z_PATH>                Specifies the path of your 7z executable binary file. [default: 7z]
         --bunzip2-path <BUNZIP2_PATH>      Specifies the path of your bunzip2 executable binary file. [default: bunzip2]
         --bzip2-path <BZIP2_PATH>          Specifies the path of your bzip2 executable binary file. [default: bzip2]
@@ -37,7 +38,6 @@ OPTIONS:
         --lunzip-path <LUNZIP_PATH>        Specifies the path of your lunzip executable binary file. [default: lunzip]
         --lzip-path <LZIP_PATH>            Specifies the path of your lzip executable binary file. [default: lzip]
         --lzma-path <LZMA_PATH>            Specifies the path of your lzma executable binary file. [default: lzma]
-    -p, --password <PASSWORD>              Sets password for your archive file. (Only supports 7Z, ZIP and RAR)
         --pbzip2-path <PBZIP2_PATH>        Specifies the path of your pbzip2 executable binary file. [default: pbzip2]
         --pigz-path <PIGZ_PATH>            Specifies the path of your pigz executable binary file. [default: pigz]
         --plzip-path <PLZIP_PATH>          Specifies the path of your plzip executable binary file. [default: plzip]
