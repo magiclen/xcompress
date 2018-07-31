@@ -929,6 +929,197 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
     let threads = threads.as_str();
 
     match format {
+        ArchiveFormat::Bzip2 => {
+            if input_paths.len() > 1 {
+                return Err(String::from("Obviously, you should use .tar.bz2 for filename extension to support multiple files."));
+            }
+
+            let input_path = &input_paths[0];
+
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path) {
+                    return Err(error.to_string());
+                }
+            }
+
+            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+
+            if cpus > 1 {
+                if let Ok(_) = check_executable(&vec![paths.lbzip2_path.as_str(), "-V"]) {
+                    let mut cmd = vec![paths.lbzip2_path.as_str(), "-z", "-c", "-n", threads, input_path];
+
+                    if quiet {
+                        cmd.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd.push("-9");
+                    }
+
+                    match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                } else if let Ok(_) = check_executable(&vec![paths.pbzip2_path.as_str(), "-V"]) {
+                    let cmd = format!("-p{}", threads);
+                    let mut cmd = vec![paths.pbzip2_path.as_str(), "-z", "-c", cmd.as_str(), input_path];
+
+                    if quiet {
+                        cmd.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd.push("-9");
+                    }
+
+                    match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+
+            let mut cmd = vec![paths.bzip2_path.as_str(), "-z", "-c", input_path];
+
+            if quiet {
+                cmd.push("-q");
+            }
+
+            if best_compression {
+                cmd.push("-9");
+            }
+
+            match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                Ok(_) => {
+                    return Ok(0);
+                }
+                Err(error) => {
+                    return Err(error);
+                }
+            }
+        }
+        ArchiveFormat::Lz => {
+            if input_paths.len() > 1 {
+                return Err(String::from("Obviously, you should use .tar.lz for filename extension to support multiple files."));
+            }
+
+            let input_path = &input_paths[0];
+
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path) {
+                    return Err(error.to_string());
+                }
+            }
+
+            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+
+            if cpus > 1 {
+                if let Ok(_) = check_executable(&vec![paths.plzip_path.as_str(), "-V"]) {
+                    let mut cmd = vec![paths.plzip_path.as_str(), "-F", "-c", "-n", threads, input_path];
+
+                    if quiet {
+                        cmd.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd.push("-9");
+                    }
+
+                    match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+
+            let mut cmd = vec![paths.lzip_path.as_str(), "-F", "-c", input_path];
+
+            if quiet {
+                cmd.push("-q");
+            }
+
+            if best_compression {
+                cmd.push("-9");
+            }
+
+            match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                Ok(_) => {
+                    return Ok(0);
+                }
+                Err(error) => {
+                    return Err(error);
+                }
+            }
+        }
+        ArchiveFormat::Xz => {
+            if input_paths.len() > 1 {
+                return Err(String::from("Obviously, you should use .tar.xz for filename extension to support multiple files."));
+            }
+
+            let input_path = &input_paths[0];
+
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path) {
+                    return Err(error.to_string());
+                }
+            }
+
+            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+
+            if cpus > 1 {
+                if let Ok(_) = check_executable(&vec![paths.pxz_path.as_str(), "-V"]) {
+                    let mut cmd = vec![paths.pxz_path.as_str(), "-z", "-c", "-T", threads, input_path];
+
+                    if quiet {
+                        cmd.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd.push("-9");
+                    }
+
+                    match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+
+            let mut cmd = vec![paths.xz_path.as_str(), "-z", "-c", input_path];
+
+            if quiet {
+                cmd.push("-q");
+            }
+
+            if best_compression {
+                cmd.push("-9");
+            }
+
+            match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                Ok(_) => {
+                    return Ok(0);
+                }
+                Err(error) => {
+                    return Err(error);
+                }
+            }
+        }
         ArchiveFormat::Lzma => {
             if input_paths.len() > 1 {
                 return Err(String::from("Obviously, you should use .tar.lzma for filename extension to support multiple files."));
@@ -948,7 +1139,7 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                 if let Ok(_) = check_executable(&vec![paths.pxz_path.as_str(), "-V"]) {
                     let mut cmd = vec![paths.pxz_path.as_str(), "-z", "-c", "-T", threads, "-F", "lzma", input_path];
 
-                    if !quiet {
+                    if quiet {
                         cmd.push("-q");
                     }
 
@@ -967,9 +1158,9 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                 }
             }
 
-            let mut cmd = vec![paths.lzma_path.as_str(), "-z", "-c", "-T", threads, input_path];
+            let mut cmd = vec![paths.lzma_path.as_str(), "-z", "-c", input_path];
 
-            if !quiet {
+            if quiet {
                 cmd.push("-q");
             }
 
@@ -1211,7 +1402,7 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                 if let Ok(_) = check_executable(&vec![paths.pzstd_path.as_str(), "-V"]) {
                     let mut cmd = vec![paths.pzstd_path.as_str(), "-p", threads, input_path, "-o", output_path];
 
-                    if !quiet {
+                    if quiet {
                         cmd.push("-q");
                     }
 
@@ -1223,11 +1414,9 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                 }
             }
 
-            let thread_arg = format!("-T{}", threads);
+            let mut cmd = vec![paths.zstd_path.as_str(), input_path, "-o", output_path];
 
-            let mut cmd = vec![paths.zstd_path.as_str(), thread_arg.as_str(), input_path, "-o", output_path];
-
-            if !quiet {
+            if quiet {
                 cmd.push("-q");
             }
 
@@ -1328,7 +1517,7 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
             execute_one(&cmd, output_path)
         }
         ArchiveFormat::TarLz => {
-            if cpus > 11 {
+            if cpus > 1 {
                 if let Ok(_) = check_executable(&vec![paths.plzip_path.as_str(), "-V"]) {
                     let cmd1 = vec![paths.plzip_path.as_str(), "-d", "-c", "-n", threads, input_path];
 
@@ -1384,32 +1573,6 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
                     cmd2.push("-");
 
                     return execute_two(&cmd1, &cmd2, output_path);
-                } else if let Ok(_) = check_executable(&vec![paths.unxz_path.as_str(), "-V"]) {
-                    let cmd1 = vec![paths.unxz_path.as_str(), "-c", "-T", threads, input_path];
-
-                    let mut cmd2 = vec![paths.tar_path.as_str(), "-x"];
-
-                    if !quiet {
-                        cmd2.push("-v");
-                    }
-
-                    cmd2.push("-f");
-                    cmd2.push("-");
-
-                    return execute_two(&cmd1, &cmd2, output_path);
-                } else if let Ok(_) = check_executable(&vec![paths.xz_path.as_str(), "-V"]) {
-                    let cmd1 = vec![paths.xz_path.as_str(), "-d", "-c", "-T", threads, input_path];
-
-                    let mut cmd2 = vec![paths.tar_path.as_str(), "-x"];
-
-                    if !quiet {
-                        cmd2.push("-v");
-                    }
-
-                    cmd2.push("-f");
-                    cmd2.push("-");
-
-                    return execute_two(&cmd1, &cmd2, output_path);
                 }
             }
 
@@ -1428,32 +1591,6 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
             if cpus > 1 {
                 if let Ok(_) = check_executable(&vec![paths.pxz_path.as_str(), "-V"]) {
                     let cmd1 = vec![paths.pxz_path.as_str(), "-d", "-c", "-T", threads, "-F", "lzma", input_path];
-
-                    let mut cmd2 = vec![paths.tar_path.as_str(), "-x"];
-
-                    if !quiet {
-                        cmd2.push("-v");
-                    }
-
-                    cmd2.push("-f");
-                    cmd2.push("-");
-
-                    return execute_two(&cmd1, &cmd2, output_path);
-                } else if let Ok(_) = check_executable(&vec![paths.unlzma_path.as_str(), "-V"]) {
-                    let cmd1 = vec![paths.unlzma_path.as_str(), "-c", "-T", threads, input_path];
-
-                    let mut cmd2 = vec![paths.tar_path.as_str(), "-x"];
-
-                    if !quiet {
-                        cmd2.push("-v");
-                    }
-
-                    cmd2.push("-f");
-                    cmd2.push("-");
-
-                    return execute_two(&cmd1, &cmd2, output_path);
-                } else if let Ok(_) = check_executable(&vec![paths.lzma_path.as_str(), "-V"]) {
-                    let cmd1 = vec![paths.lzma_path.as_str(), "-d", "-c", "-T", threads, input_path];
 
                     let mut cmd2 = vec![paths.tar_path.as_str(), "-x"];
 
@@ -1515,36 +1652,8 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
         }
         ArchiveFormat::TarZstd => {
             if cpus > 1 {
-                let thread_arg = format!("-T{}", threads);
-
                 if let Ok(_) = check_executable(&vec![paths.pzstd_path.as_str(), "-V"]) {
                     let cmd1 = vec![paths.pzstd_path.as_str(), "-d", "-c", "-p", threads, input_path];
-
-                    let mut cmd2 = vec![paths.tar_path.as_str(), "-x"];
-
-                    if !quiet {
-                        cmd2.push("-v");
-                    }
-
-                    cmd2.push("-f");
-                    cmd2.push("-");
-
-                    return execute_two(&cmd1, &cmd2, output_path);
-                } else if let Ok(_) = check_executable(&vec![paths.unzstd_path.as_str(), "-V"]) {
-                    let cmd1 = vec![paths.unzstd_path.as_str(), "-c", thread_arg.as_str(), input_path];
-
-                    let mut cmd2 = vec![paths.tar_path.as_str(), "-x"];
-
-                    if !quiet {
-                        cmd2.push("-v");
-                    }
-
-                    cmd2.push("-f");
-                    cmd2.push("-");
-
-                    return execute_two(&cmd1, &cmd2, output_path);
-                } else if let Ok(_) = check_executable(&vec![paths.zstd_path.as_str(), "-V"]) {
-                    let cmd1 = vec![paths.zstd_path.as_str(), "-d", "-c", thread_arg.as_str(), input_path];
 
                     let mut cmd2 = vec![paths.tar_path.as_str(), "-x"];
 
@@ -1762,32 +1871,6 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
                             return Err(error);
                         }
                     }
-                } else if let Ok(_) = check_executable(&vec![paths.unxz_path.as_str(), "-V"]) {
-                    let cmd = vec![paths.unxz_path.as_str(), "-c", "-T", threads, input_path];
-
-                    let file_path = Path::new(input_path);
-
-                    match execute_one_stream_to_file(&cmd, output_path, file_path.file_stem().unwrap().to_str().unwrap()) {
-                        Ok(_) => {
-                            return Ok(0);
-                        }
-                        Err(error) => {
-                            return Err(error);
-                        }
-                    }
-                } else if let Ok(_) = check_executable(&vec![paths.xz_path.as_str(), "-V"]) {
-                    let cmd = vec![paths.xz_path.as_str(), "-d", "-c", "-T", threads, input_path];
-
-                    let file_path = Path::new(input_path);
-
-                    match execute_one_stream_to_file(&cmd, output_path, file_path.file_stem().unwrap().to_str().unwrap()) {
-                        Ok(_) => {
-                            return Ok(0);
-                        }
-                        Err(error) => {
-                            return Err(error);
-                        }
-                    }
                 }
             }
 
@@ -1823,32 +1906,6 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
             if cpus > 1 {
                 if let Ok(_) = check_executable(&vec![paths.pxz_path.as_str(), "-V"]) {
                     let cmd = vec![paths.pxz_path.as_str(), "-d", "-c", "-T", threads, "-F", "lzma", input_path];
-
-                    let file_path = Path::new(input_path);
-
-                    match execute_one_stream_to_file(&cmd, output_path, file_path.file_stem().unwrap().to_str().unwrap()) {
-                        Ok(_) => {
-                            return Ok(0);
-                        }
-                        Err(error) => {
-                            return Err(error);
-                        }
-                    }
-                } else if let Ok(_) = check_executable(&vec![paths.unlzma_path.as_str(), "-V"]) {
-                    let cmd = vec![paths.unlzma_path.as_str(), "-c", "-T", threads, input_path];
-
-                    let file_path = Path::new(input_path);
-
-                    match execute_one_stream_to_file(&cmd, output_path, file_path.file_stem().unwrap().to_str().unwrap()) {
-                        Ok(_) => {
-                            return Ok(0);
-                        }
-                        Err(error) => {
-                            return Err(error);
-                        }
-                    }
-                } else if let Ok(_) = check_executable(&vec![paths.lzma_path.as_str(), "-V"]) {
-                    let cmd = vec![paths.lzma_path.as_str(), "-d", "-c", "-T", threads, input_path];
 
                     let file_path = Path::new(input_path);
 
@@ -1972,36 +2029,8 @@ pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_
         }
         ArchiveFormat::Zstd => {
             if cpus > 1 {
-                let thread_arg = format!("-T{}", threads);
-
                 if let Ok(_) = check_executable(&vec![paths.pzstd_path.as_str(), "-V"]) {
                     let cmd = vec![paths.pzstd_path.as_str(), "-d", "-c", "-p", threads, input_path];
-
-                    let file_path = Path::new(input_path);
-
-                    match execute_one_stream_to_file(&cmd, output_path, file_path.file_stem().unwrap().to_str().unwrap()) {
-                        Ok(_) => {
-                            return Ok(0);
-                        }
-                        Err(error) => {
-                            return Err(error);
-                        }
-                    }
-                } else if let Ok(_) = check_executable(&vec![paths.unzstd_path.as_str(), "-V"]) {
-                    let cmd = vec![paths.unzstd_path.as_str(), "-c", thread_arg.as_str(), input_path];
-
-                    let file_path = Path::new(input_path);
-
-                    match execute_one_stream_to_file(&cmd, output_path, file_path.file_stem().unwrap().to_str().unwrap()) {
-                        Ok(_) => {
-                            return Ok(0);
-                        }
-                        Err(error) => {
-                            return Err(error);
-                        }
-                    }
-                } else if let Ok(_) = check_executable(&vec![paths.unzstd_path.as_str(), "-V"]) {
-                    let cmd = vec![paths.unzstd_path.as_str(), "-d", "-c", thread_arg.as_str(), input_path];
 
                     let file_path = Path::new(input_path);
 
