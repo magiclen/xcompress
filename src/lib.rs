@@ -929,6 +929,46 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
     let threads = threads.as_str();
 
     match format {
+        ArchiveFormat::Tar => {
+            let mut cmd = vec![paths.tar_path.as_str(), "-r"];
+
+            if !quiet {
+                cmd.push("-v");
+            }
+
+            cmd.push("-f");
+
+            cmd.push(output_path_obj.to_str().unwrap());
+
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path) {
+                    return Err(error.to_string());
+                }
+            }
+
+            let mut es = 0;
+
+            for input_path in input_paths {
+                let input_path_obj = Path::new(input_path);
+                let file_name = Path::file_name(input_path_obj).unwrap().to_str().unwrap();
+
+                let mut cmd = cmd.clone();
+
+                cmd.push(file_name);
+
+                let input_folder = input_path_obj.parent().unwrap().to_str().unwrap();
+
+                es = match execute_one(&cmd, input_folder) {
+                    Ok(es) => es,
+                    Err(error) => {
+                        try_delete_file(output_path);
+                        return Err(error);
+                    }
+                }
+            }
+
+            Ok(es)
+        }
         ArchiveFormat::Z => {
             // Not recommend
 
