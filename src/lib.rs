@@ -1037,7 +1037,7 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
         ArchiveFormat::Z => {
             // Not recommend
 
-            if input_paths.len() > 1 {
+            if input_paths.len() > 1 || Path::is_dir(Path::new(&input_paths[0])) {
                 return Err(String::from("Obviously, you should use .tar.Z for filename extension to support multiple files."));
             }
 
@@ -1063,8 +1063,8 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             }
         }
         ArchiveFormat::Gzip => {
-            if input_paths.len() > 1 {
-                return Err(String::from("Obviously, you should use .tar.lz for filename extension to support multiple files."));
+            if input_paths.len() > 1 || Path::is_dir(Path::new(&input_paths[0])) {
+                return Err(String::from("Obviously, you should use .tar.gz for filename extension to support multiple files."));
             }
 
             let input_path = &input_paths[0];
@@ -1141,7 +1141,7 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             }
         }
         ArchiveFormat::Bzip2 => {
-            if input_paths.len() > 1 {
+            if input_paths.len() > 1 || Path::is_dir(Path::new(&input_paths[0])) {
                 return Err(String::from("Obviously, you should use .tar.bz2 for filename extension to support multiple files."));
             }
 
@@ -1218,7 +1218,7 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             }
         }
         ArchiveFormat::Lz => {
-            if input_paths.len() > 1 {
+            if input_paths.len() > 1 || Path::is_dir(Path::new(&input_paths[0])) {
                 return Err(String::from("Obviously, you should use .tar.lz for filename extension to support multiple files."));
             }
 
@@ -1275,7 +1275,7 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             }
         }
         ArchiveFormat::Xz => {
-            if input_paths.len() > 1 {
+            if input_paths.len() > 1 || Path::is_dir(Path::new(&input_paths[0])) {
                 return Err(String::from("Obviously, you should use .tar.xz for filename extension to support multiple files."));
             }
 
@@ -1334,8 +1334,8 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             }
         }
         ArchiveFormat::Lzma => {
-            if input_paths.len() > 1 {
-                return Err(String::from("Obviously, you should use .tar.lzma for filename extension to support multiple files."));
+            if input_paths.len() > 1 || Path::is_dir(Path::new(&input_paths[0])) {
+                return Err(String::from("Obviously, you should use .tar.lzma for filename extension to support directories and multiple files."));
             }
 
             let input_path = &input_paths[0];
