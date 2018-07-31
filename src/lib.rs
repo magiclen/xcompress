@@ -667,26 +667,30 @@ enum ArchiveFormat {
 }
 
 impl ArchiveFormat {
-    fn get_archive_format_from_file_path(file_path: &str) -> Result<ArchiveFormat, &'static str> {
+    fn get_archive_format_from_file_path(file_path: &str, exclude_tar: bool) -> Result<ArchiveFormat, &'static str> {
         let file_path = file_path.to_lowercase();
 
-        if file_path.ends_with(".tar.z") {
-            Ok(ArchiveFormat::TarZ)
-        } else if file_path.ends_with(".tar.gz") || file_path.ends_with(".tgz") {
-            Ok(ArchiveFormat::TarGzip)
-        } else if file_path.ends_with(".tar.bz2") || file_path.ends_with(".tbz2") {
-            Ok(ArchiveFormat::TarBzip2)
-        } else if file_path.ends_with(".tar.lz") {
-            Ok(ArchiveFormat::TarLz)
-        } else if file_path.ends_with(".tar.xz") || file_path.ends_with(".txz") {
-            Ok(ArchiveFormat::TarXz)
-        } else if file_path.ends_with(".tar.lzma") || file_path.ends_with(".tlz") {
-            Ok(ArchiveFormat::TarLzma)
-        } else if file_path.ends_with(".tar.7z") || file_path.ends_with(".tar.7z.001") || file_path.ends_with(".t7z") {
-            Ok(ArchiveFormat::Tar7z)
-        } else if file_path.ends_with(".tar.zst") {
-            Ok(ArchiveFormat::TarZstd)
-        } else if file_path.ends_with(".tar") {
+        if !exclude_tar {
+            if file_path.ends_with(".tar.z") {
+                return Ok(ArchiveFormat::TarZ);
+            } else if file_path.ends_with(".tar.gz") || file_path.ends_with(".tgz") {
+                return Ok(ArchiveFormat::TarGzip);
+            } else if file_path.ends_with(".tar.bz2") || file_path.ends_with(".tbz2") {
+                return Ok(ArchiveFormat::TarBzip2);
+            } else if file_path.ends_with(".tar.lz") {
+                return Ok(ArchiveFormat::TarLz);
+            } else if file_path.ends_with(".tar.xz") || file_path.ends_with(".txz") {
+                return Ok(ArchiveFormat::TarXz);
+            } else if file_path.ends_with(".tar.lzma") || file_path.ends_with(".tlz") {
+                return Ok(ArchiveFormat::TarLzma);
+            } else if file_path.ends_with(".tar.7z") || file_path.ends_with(".tar.7z.001") || file_path.ends_with(".t7z") {
+                return Ok(ArchiveFormat::Tar7z);
+            } else if file_path.ends_with(".tar.zst") {
+                return Ok(ArchiveFormat::TarZstd);
+            }
+        }
+
+        if file_path.ends_with(".tar") {
             Ok(ArchiveFormat::Tar)
         } else if file_path.ends_with(".z") {
             Ok(ArchiveFormat::Z)
@@ -882,7 +886,7 @@ pub fn run(config: Config) -> Result<i32, String> {
         Mode::Archive(best_compression, split, input_paths, output_path) => {
             match output_path {
                 Some(p) => {
-                    archive(paths, quiet, cpus, &password, best_compression, split, &input_paths, &p)?;
+                    archive(&paths, quiet, cpus, &password, false, best_compression, split, &input_paths, &p)?;
                 }
                 None => {
                     let current_dir = env::current_dir().unwrap();
@@ -891,19 +895,19 @@ pub fn run(config: Config) -> Result<i32, String> {
 
                     let output_path = Path::join(&current_dir, Path::new(&format!("{}.rar", input_path.file_name().unwrap().to_str().unwrap())));
 
-                    archive(paths, quiet, cpus, &password, best_compression, split, &input_paths, output_path.to_str().unwrap())?;
+                    archive(&paths, quiet, cpus, &password, false, best_compression, split, &input_paths, output_path.to_str().unwrap())?;
                 }
             }
         }
         Mode::Extract(input_path, output_path) => {
             match output_path {
                 Some(p) => {
-                    extract(paths, quiet, cpus, &password, &input_path, &p)?;
+                    extract(&paths, quiet, cpus, &password, false, &input_path, &p)?;
                 }
                 None => {
                     let current_dir = env::current_dir().unwrap();
 
-                    extract(paths, quiet, cpus, &password, &input_path, current_dir.to_str().unwrap())?;
+                    extract(&paths, quiet, cpus, &password, false, &input_path, current_dir.to_str().unwrap())?;
                 }
             }
         }
@@ -912,10 +916,10 @@ pub fn run(config: Config) -> Result<i32, String> {
     Ok(0)
 }
 
-// TODO -----Archive END-----
+// TODO -----Archive START-----
 
-pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_compression: bool, split: Option<Byte>, input_paths: &Vec<String>, output_path: &str) -> Result<i32, String> {
-    let format = match ArchiveFormat::get_archive_format_from_file_path(output_path) {
+pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlude_tar: bool, best_compression: bool, split: Option<Byte>, input_paths: &Vec<String>, output_path: &str) -> Result<i32, String> {
+    let format = match ArchiveFormat::get_archive_format_from_file_path(output_path, exlude_tar) {
         Ok(f) => f,
         Err(err) => return Err(String::from(err))
     };
@@ -929,6 +933,67 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
     let threads = threads.as_str();
 
     match format {
+        ArchiveFormat::TarZ | ArchiveFormat::TarGzip | ArchiveFormat::TarBzip2 | ArchiveFormat::TarLz | ArchiveFormat::TarXz | ArchiveFormat::TarLzma | ArchiveFormat::Tar7z | ArchiveFormat::TarZstd => {
+            let mut tar_output_path_string = String::from("");
+
+            let mut cmd = vec![paths.tar_path.as_str(), "-r"];
+
+            if !quiet {
+                cmd.push("-v");
+            }
+
+            cmd.push("-f");
+
+            let tar_output_path_obj = Path::join(output_path_obj.parent().unwrap(), Path::new(output_path_obj.file_stem().unwrap().to_str().unwrap()));
+            tar_output_path_string.push_str(tar_output_path_obj.to_str().unwrap());
+
+            if !tar_output_path_string.ends_with(".tar") {
+                tar_output_path_string.push_str(".tar");
+            }
+
+
+            let tar_output_path = &tar_output_path_string;
+
+            cmd.push(tar_output_path);
+
+            if Path::new(tar_output_path).exists() {
+                if let Err(error) = fs::remove_file(tar_output_path) {
+                    return Err(error.to_string());
+                }
+            }
+
+            for input_path in input_paths {
+                let input_path_obj = Path::new(input_path);
+                let file_name = Path::file_name(input_path_obj).unwrap().to_str().unwrap();
+
+                let mut cmd = cmd.clone();
+
+                cmd.push(file_name);
+
+                let input_folder = input_path_obj.parent().unwrap().to_str().unwrap();
+
+                match execute_one(&cmd, input_folder) {
+                    Ok(es) => {
+                        if es != 0 {
+                            try_delete_file(tar_output_path);
+                            return Ok(es);
+                        }
+                    }
+                    Err(error) => {
+                        try_delete_file(tar_output_path);
+                        return Err(error);
+                    }
+                }
+            }
+
+            let result = archive(paths, quiet, cpus, password, true, best_compression, split, &vec![tar_output_path_string.clone()], output_path);
+
+            if let Err(error) = fs::remove_file(tar_output_path) {
+                return Err(error.to_string());
+            }
+
+            result
+        }
         ArchiveFormat::Tar => {
             let mut cmd = vec![paths.tar_path.as_str(), "-r"];
 
@@ -1021,8 +1086,29 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                     }
 
                     if best_compression {
-                        cmd.push("-9");
+                        cmd.push("-11");
                     }
+
+                    match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+
+            if best_compression {
+                if let Ok(_) = check_executable(&vec![paths.pigz_path.as_str(), "-V"]) {
+                    let mut cmd = vec![paths.pigz_path.as_str(), "-c", "-p", "1", input_path];
+
+                    if quiet {
+                        cmd.push("-q");
+                    }
+
+                    cmd.push("-11");
 
                     match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
                         Ok(_) => {
@@ -1213,6 +1299,7 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
 
                     if best_compression {
                         cmd.push("-9");
+                        cmd.push("-e");
                     }
 
                     match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
@@ -1234,6 +1321,7 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
 
             if best_compression {
                 cmd.push("-9");
+                cmd.push("-e");
             }
 
             match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
@@ -1270,6 +1358,7 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
 
                     if best_compression {
                         cmd.push("-9");
+                        cmd.push("-e");
                     }
 
                     match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
@@ -1291,6 +1380,7 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
 
             if best_compression {
                 cmd.push("-9");
+                cmd.push("-e");
             }
 
             match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
@@ -1372,6 +1462,13 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
 
             output_path_obj = if let Some(_) = &split {
                 let new_filename = format!("{}.tmp.zip", output_path_obj.file_stem().unwrap().to_str().unwrap());
+
+                if output_path_obj.exists() {
+                    if let Err(error) = fs::remove_file(output_path) {
+                        return Err(error.to_string());
+                    }
+                }
+
                 Path::join(&output_folder_obj, Path::new(&new_filename))
             } else {
                 output_path_obj
@@ -1398,7 +1495,13 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                 let input_folder = input_path_obj.parent().unwrap().to_str().unwrap();
 
                 es = match execute_one(&cmd, input_folder) {
-                    Ok(es) => es,
+                    Ok(es) => {
+                        if es != 0 {
+                            try_delete_file(output_path);
+                            return Ok(es);
+                        }
+                        es
+                    }
                     Err(error) => {
                         try_delete_file(output_path);
                         return Err(error);
@@ -1532,7 +1635,8 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
                     }
 
                     if best_compression {
-                        cmd.push("-19");
+                        cmd.push("--ultra");
+                        cmd.push("-22");
                     }
 
                     return execute_one(&cmd, output_folder);
@@ -1546,12 +1650,13 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
             }
 
             if best_compression {
-                cmd.push("-19");
+                cmd.push("--ultra");
+                cmd.push("-22");
             }
 
             execute_one(&cmd, output_folder)
         }
-        _ => Err(String::from("Cannot handle this format yet."))
+//        _ => Err(String::from("Cannot handle this format yet."))
     }
 }
 
@@ -1559,8 +1664,8 @@ pub fn archive(paths: ExePaths, quiet: bool, cpus: usize, password: &str, best_c
 
 // TODO -----Extract START-----
 
-pub fn extract(paths: ExePaths, quiet: bool, cpus: usize, password: &str, input_path: &str, output_path: &str) -> Result<i32, String> {
-    let format = match ArchiveFormat::get_archive_format_from_file_path(input_path) {
+pub fn extract(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlude_tar: bool, input_path: &str, output_path: &str) -> Result<i32, String> {
+    let format = match ArchiveFormat::get_archive_format_from_file_path(input_path, exlude_tar) {
         Ok(f) => f,
         Err(err) => return Err(String::from(err))
     };
