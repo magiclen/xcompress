@@ -1445,19 +1445,17 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             let output_folder_obj = output_folder_obj.parent().unwrap();
             let output_folder = output_folder_obj.to_str().unwrap();
 
-            let mut cmd = vec![paths.zip_path.as_str(), "-r"];
+            let password_arg = format!("-p{}", create_cli_string(&password));
+            let thread_arg = format!("-mmt{}", threads);
+
+            let mut cmd = vec![paths.p7z_path.as_str(), "a", "-tzip", "-aoa", thread_arg.as_str()];
 
             if best_compression {
-                cmd.push("-9");
+                cmd.push("-mx");
             }
 
             if !password.is_empty() {
-                cmd.push("--password");
-                cmd.push(password);
-            }
-
-            if quiet {
-                cmd.push("-q");
+                cmd.push(password_arg.as_str());
             }
 
             output_path_obj = if let Some(_) = &split {
@@ -1476,40 +1474,36 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
 
             cmd.push(output_path_obj.to_str().unwrap());
 
+            for input_path in input_paths {
+                cmd.push(input_path);
+            }
+
             if output_path_obj.exists() {
-                if let Err(error) = fs::remove_file(output_path) {
+                if let Err(error) = fs::remove_file(output_path_obj.to_str().unwrap()) {
                     return Err(error.to_string());
                 }
             }
 
-            let mut es = 0;
+            let result = if quiet {
+                execute_one_quiet(&cmd, output_folder)
+            } else {
+                execute_one(&cmd, output_folder)
+            };
 
-            for input_path in input_paths {
-                let input_path_obj = Path::new(input_path);
-                let file_name = Path::file_name(input_path_obj).unwrap().to_str().unwrap();
-
-                let mut cmd = cmd.clone();
-
-                cmd.push(file_name);
-
-                let input_folder = input_path_obj.parent().unwrap().to_str().unwrap();
-
-                es = match execute_one(&cmd, input_folder) {
+            if let Some(byte) = split {
+                match result {
                     Ok(es) => {
                         if es != 0 {
                             try_delete_file(output_path);
                             return Ok(es);
                         }
-                        es
                     }
                     Err(error) => {
                         try_delete_file(output_path);
                         return Err(error);
                     }
                 }
-            }
 
-            if let Some(byte) = split {
                 let mut volume = String::from("");
                 let new_output_path_obj;
 
@@ -1534,6 +1528,7 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 } else {
                     volume.push_str(format!("{}k", byte.get_adjusted_unit(ByteUnit::KiB).get_value().round() as u32).as_str());
                 }
+
                 cmd.push(&volume);
 
                 cmd.push(output_path_obj.to_str().unwrap());
@@ -1548,10 +1543,10 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
 
                 cmd.push(new_output_path);
 
-                es = match execute_one(&cmd, output_folder) {
+                match execute_one(&cmd, output_folder) {
                     Ok(es) => {
                         try_delete_file(output_path);
-                        es
+                        return Ok(es);
                     }
                     Err(error) => {
                         try_delete_file(output_path);
@@ -1561,7 +1556,7 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 }
             }
 
-            Ok(es)
+            result
         }
         ArchiveFormat::Rar => {
             let password_arg = format!("-hp{}", create_cli_string(&password));
