@@ -964,7 +964,7 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
 
             for input_path in input_paths {
                 let input_path_obj = Path::new(input_path);
-                let file_name = Path::file_name(input_path_obj).unwrap().to_str().unwrap();
+                let file_name = input_path_obj.file_name().unwrap().to_str().unwrap();
 
                 let mut cmd = cmd.clone();
 
@@ -995,6 +995,8 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             result
         }
         ArchiveFormat::Tar => {
+            let mut input_paths_vec = Vec::<String>::new();
+
             let mut cmd = vec![paths.tar_path.as_str(), "-r"];
 
             if !quiet {
@@ -1011,28 +1013,23 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 }
             }
 
-            let mut es = 0;
-
             for input_path in input_paths {
                 let input_path_obj = Path::new(input_path);
-                let file_name = Path::file_name(input_path_obj).unwrap().to_str().unwrap();
-
-                let mut cmd = cmd.clone();
-
-                cmd.push(file_name);
-
                 let input_folder = input_path_obj.parent().unwrap().to_str().unwrap();
+                let file_name = input_path_obj.file_name().unwrap().to_str().unwrap();
 
-                es = match execute_one(&cmd, input_folder) {
-                    Ok(es) => es,
-                    Err(error) => {
-                        try_delete_file(output_path);
-                        return Err(error);
-                    }
-                }
+                input_paths_vec.push(String::from("-C"));
+                input_paths_vec.push(String::from(input_folder));
+                input_paths_vec.push(String::from(file_name));
             }
 
-            Ok(es)
+            for input_path in &input_paths_vec {
+                cmd.push(&input_path);
+            }
+
+            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
+
+            execute_one(&cmd, output_folder)
         }
         ArchiveFormat::Z => {
             // Not recommend
