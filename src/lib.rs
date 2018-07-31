@@ -737,8 +737,16 @@ fn check_executable(cmd: &[&str]) -> Result<(), ()> {
     }
 }
 
+fn execute_two_stream_to_file(cmd1: &[&str], cmd2: &[&str], cwd: &str, file_name: &str) -> Result<(), String> {
+    stream_to_file(execute_two_stream(cmd1, cmd2, cwd), cwd, file_name)
+}
+
 fn execute_one_stream_to_file(cmd: &[&str], cwd: &str, file_name: &str) -> Result<(), String> {
-    match execute_one_stream(&cmd, cwd) {
+    stream_to_file(execute_one_stream(cmd, cwd), cwd, file_name)
+}
+
+fn stream_to_file(result: Result<Box<Read>, String>, cwd: &str, file_name: &str) -> Result<(), String> {
+    match result {
         Ok(read) => {
             let mut reader = BufReader::new(read);
 
@@ -785,6 +793,19 @@ fn execute_one_stream_to_file(cmd: &[&str], cwd: &str, file_name: &str) -> Resul
     }
 }
 
+fn execute_two_stream(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<Box<Read>, String> {
+    if let Err(error) = fs::create_dir_all(cwd) {
+        return Err(error.to_string());
+    }
+
+    let process = { Exec::cmd(cmd1[0]).cwd(cwd).args(&cmd1[1..]) | Exec::cmd(cmd2[0]).cwd(cwd).args(&cmd2[1..]) };
+
+    match process.stream_stdout() {
+        Ok(read) => Ok(read),
+        Err(error) => Err(error.to_string())
+    }
+}
+
 fn execute_one_stream(cmd: &[&str], cwd: &str) -> Result<Box<Read>, String> {
     if let Err(error) = fs::create_dir_all(cwd) {
         return Err(error.to_string());
@@ -794,6 +815,19 @@ fn execute_one_stream(cmd: &[&str], cwd: &str) -> Result<Box<Read>, String> {
 
     match process.stream_stdout() {
         Ok(read) => Ok(read),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+fn execute_two_quiet(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<i32, String> {
+    if let Err(error) = fs::create_dir_all(cwd) {
+        return Err(error.to_string());
+    }
+
+    let process = { Exec::cmd(cmd1[0]).cwd(cwd).args(&cmd1[1..]) | Exec::cmd(cmd2[0]).cwd(cwd).args(&cmd2[1..]) }.stdout(NullFile {});
+
+    match execute_join_pipeline(process) {
+        Ok(es) => Ok(es),
         Err(error) => Err(error.to_string())
     }
 }
@@ -811,19 +845,6 @@ fn execute_one_quiet(cmd: &[&str], cwd: &str) -> Result<i32, String> {
     }
 }
 
-fn execute_one(cmd: &[&str], cwd: &str) -> Result<i32, String> {
-    if let Err(error) = fs::create_dir_all(cwd) {
-        return Err(error.to_string());
-    }
-
-    let process = Exec::cmd(cmd[0]).cwd(cwd).args(&cmd[1..]);
-
-    match execute_join(process) {
-        Ok(es) => Ok(es),
-        Err(error) => Err(error.to_string())
-    }
-}
-
 fn execute_two(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<i32, String> {
     if let Err(error) = fs::create_dir_all(cwd) {
         return Err(error.to_string());
@@ -832,6 +853,19 @@ fn execute_two(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<i32, String> {
     let process = { Exec::cmd(cmd1[0]).cwd(cwd).args(&cmd1[1..]) | Exec::cmd(cmd2[0]).cwd(cwd).args(&cmd2[1..]) };
 
     match execute_join_pipeline(process) {
+        Ok(es) => Ok(es),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+fn execute_one(cmd: &[&str], cwd: &str) -> Result<i32, String> {
+    if let Err(error) = fs::create_dir_all(cwd) {
+        return Err(error.to_string());
+    }
+
+    let process = Exec::cmd(cmd[0]).cwd(cwd).args(&cmd[1..]);
+
+    match execute_join(process) {
         Ok(es) => Ok(es),
         Err(error) => Err(error.to_string())
     }
@@ -934,70 +968,384 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
 
     match format {
         ArchiveFormat::TarZ | ArchiveFormat::TarGzip | ArchiveFormat::TarBzip2 | ArchiveFormat::TarLz | ArchiveFormat::TarXz | ArchiveFormat::TarLzma | ArchiveFormat::Tar7z | ArchiveFormat::TarZstd => {
-            let mut tar_output_path_string = String::from("");
+            let mut input_paths_vec = Vec::<String>::new();
 
-            let mut cmd = vec![paths.tar_path.as_str(), "-r"];
+            let mut cmd1 = vec![paths.tar_path.as_str(), "-c"];
 
-            if !quiet {
-                cmd.push("-v");
-            }
+            cmd1.push("-f");
 
-            cmd.push("-f");
+            cmd1.push("-");
 
-            let tar_output_path_obj = Path::join(output_path_obj.parent().unwrap(), Path::new(output_path_obj.file_stem().unwrap().to_str().unwrap()));
-            tar_output_path_string.push_str(tar_output_path_obj.to_str().unwrap());
-
-            if !tar_output_path_string.ends_with(".tar") {
-                tar_output_path_string.push_str(".tar");
-            }
-
-
-            let tar_output_path = &tar_output_path_string;
-
-            cmd.push(tar_output_path);
-
-            if Path::new(tar_output_path).exists() {
-                if let Err(error) = fs::remove_file(tar_output_path) {
+            if output_path_obj.exists() {
+                if let Err(error) = fs::remove_file(output_path) {
                     return Err(error.to_string());
                 }
             }
 
             for input_path in input_paths {
                 let input_path_obj = Path::new(input_path);
+                let input_folder = input_path_obj.parent().unwrap().to_str().unwrap();
                 let file_name = input_path_obj.file_name().unwrap().to_str().unwrap();
 
-                let mut cmd = cmd.clone();
+                input_paths_vec.push(String::from("-C"));
+                input_paths_vec.push(String::from(input_folder));
+                input_paths_vec.push(String::from(file_name));
+            }
 
-                cmd.push(file_name);
+            for input_path in &input_paths_vec {
+                cmd1.push(&input_path);
+            }
 
-                let input_folder = input_path_obj.parent().unwrap().to_str().unwrap();
+            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
 
-                match execute_one(&cmd, input_folder) {
-                    Ok(es) => {
-                        if es != 0 {
-                            try_delete_file(tar_output_path);
-                            return Ok(es);
+            match format {
+                ArchiveFormat::TarZ => {
+                    let mut cmd2 = vec![paths.compress_path.as_str(), "-c", "-"];
+
+                    match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
                         }
                     }
-                    Err(error) => {
-                        try_delete_file(tar_output_path);
-                        return Err(error);
+                }
+                ArchiveFormat::TarGzip => {
+                    if cpus > 1 {
+                        if let Ok(_) = check_executable(&vec![paths.pigz_path.as_str(), "-V"]) {
+                            let mut cmd2 = vec![paths.pigz_path.as_str(), "-c", "-p", threads, "-"];
+
+                            if quiet {
+                                cmd2.push("-q");
+                            }
+
+                            if best_compression {
+                                cmd2.push("-11");
+                            }
+
+                            match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                                Ok(_) => {
+                                    return Ok(0);
+                                }
+                                Err(error) => {
+                                    return Err(error);
+                                }
+                            }
+                        }
+                    }
+
+                    if best_compression {
+                        if let Ok(_) = check_executable(&vec![paths.pigz_path.as_str(), "-V"]) {
+                            let mut cmd2 = vec![paths.pigz_path.as_str(), "-c", "-p", "1", "-"];
+
+                            if quiet {
+                                cmd2.push("-q");
+                            }
+
+                            if best_compression {
+                                cmd2.push("-11");
+                            }
+
+                            match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                                Ok(_) => {
+                                    return Ok(0);
+                                }
+                                Err(error) => {
+                                    return Err(error);
+                                }
+                            }
+                        }
+                    }
+
+                    let mut cmd2 = vec![paths.gzip_path.as_str(), "-c", "-"];
+
+                    if quiet {
+                        cmd2.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd2.push("-9");
+                    }
+
+                    match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
                     }
                 }
+                ArchiveFormat::TarBzip2 => {
+                    if cpus > 1 {
+                        if let Ok(_) = check_executable(&vec![paths.lbzip2_path.as_str(), "-V"]) {
+                            let mut cmd2 = vec![paths.lbzip2_path.as_str(), "-z", "-c", "-n", threads, "-"];
+
+                            if quiet {
+                                cmd2.push("-q");
+                            }
+
+                            if best_compression {
+                                cmd2.push("-9");
+                            }
+
+                            match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                                Ok(_) => {
+                                    return Ok(0);
+                                }
+                                Err(error) => {
+                                    return Err(error);
+                                }
+                            }
+                        } else if let Ok(_) = check_executable(&vec![paths.pbzip2_path.as_str(), "-V"]) {
+                            let cmd2 = format!("-p{}", threads);
+                            let mut cmd2 = vec![paths.pbzip2_path.as_str(), "-z", "-c", cmd2.as_str(), "-"];
+
+                            if quiet {
+                                cmd2.push("-q");
+                            }
+
+                            if best_compression {
+                                cmd2.push("-9");
+                            }
+
+                            match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                                Ok(_) => {
+                                    return Ok(0);
+                                }
+                                Err(error) => {
+                                    return Err(error);
+                                }
+                            }
+                        }
+                    }
+
+                    let mut cmd2 = vec![paths.bzip2_path.as_str(), "-z", "-c", "-"];
+
+                    if quiet {
+                        cmd2.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd2.push("-9");
+                    }
+
+                    match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                }
+                ArchiveFormat::TarLz => {
+                    if cpus > 1 {
+                        if let Ok(_) = check_executable(&vec![paths.plzip_path.as_str(), "-V"]) {
+                            let mut cmd2 = vec![paths.plzip_path.as_str(), "-F", "-c", "-n", threads, "-"];
+
+                            if quiet {
+                                cmd2.push("-q");
+                            }
+
+                            if best_compression {
+                                cmd2.push("-9");
+                            }
+
+                            match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                                Ok(_) => {
+                                    return Ok(0);
+                                }
+                                Err(error) => {
+                                    return Err(error);
+                                }
+                            }
+                        }
+                    }
+
+                    let mut cmd2 = vec![paths.lzip_path.as_str(), "-F", "-c", "-"];
+
+                    if quiet {
+                        cmd2.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd2.push("-9");
+                    }
+
+                    match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                }
+                ArchiveFormat::TarXz => {
+                    if cpus > 1 {
+                        if let Ok(_) = check_executable(&vec![paths.pxz_path.as_str(), "-V"]) {
+                            let mut cmd2 = vec![paths.pxz_path.as_str(), "-z", "-c", "-T", threads, "-"];
+
+                            if quiet {
+                                cmd2.push("-q");
+                            }
+
+                            if best_compression {
+                                cmd2.push("-9");
+                                cmd2.push("-e");
+                            }
+
+                            match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                                Ok(_) => {
+                                    return Ok(0);
+                                }
+                                Err(error) => {
+                                    return Err(error);
+                                }
+                            }
+                        }
+                    }
+
+                    let mut cmd2 = vec![paths.xz_path.as_str(), "-z", "-c", "-"];
+
+                    if quiet {
+                        cmd2.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd2.push("-9");
+                        cmd2.push("-e");
+                    }
+
+                    match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                }
+                ArchiveFormat::TarLzma => {
+                    if cpus > 1 {
+                        if let Ok(_) = check_executable(&vec![paths.pxz_path.as_str(), "-V"]) {
+                            let mut cmd2 = vec![paths.pxz_path.as_str(), "-z", "-c", "-T", threads, "-F", "lzma", "-"];
+
+                            if quiet {
+                                cmd2.push("-q");
+                            }
+
+                            if best_compression {
+                                cmd2.push("-9");
+                                cmd2.push("-e");
+                            }
+
+                            match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                                Ok(_) => {
+                                    return Ok(0);
+                                }
+                                Err(error) => {
+                                    return Err(error);
+                                }
+                            }
+                        }
+                    }
+
+                    let mut cmd2 = vec![paths.lzma_path.as_str(), "-z", "-c", "-"];
+
+                    if quiet {
+                        cmd2.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd2.push("-9");
+                        cmd2.push("-e");
+                    }
+
+                    match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
+                        Ok(_) => {
+                            return Ok(0);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
+                }
+                ArchiveFormat::Tar7z => {
+                    let password_arg = format!("-p{}", create_cli_string(&password));
+                    let thread_arg = format!("-mmt{}", threads);
+                    let mut volume = String::from("-v");
+
+                    let mut cmd2 = vec![paths.p7z_path.as_str(), "a", "-t7z", "-aoa", thread_arg.as_str(), "-si"];
+
+                    if best_compression {
+                        cmd2.push("-m0=lzma2");
+                        cmd2.push("-mx");
+                        cmd2.push("-ms=on");
+                    }
+
+                    if !password.is_empty() {
+                        cmd2.push("-mhe=on");
+                        cmd2.push(password_arg.as_str());
+                    }
+
+                    if let Some(byte) = split {
+                        if byte.get_bytes() < 65536 {
+                            volume.push_str("65536b");
+                        } else {
+                            volume.push_str(format!("{}k", byte.get_adjusted_unit(ByteUnit::KiB).get_value().round() as u32).as_str());
+                        }
+                        cmd2.push(&volume);
+                    }
+
+                    cmd2.push(output_path);
+
+                    if quiet {
+                        execute_two_quiet(&cmd1, &cmd2, output_folder)
+                    } else {
+                        execute_two(&cmd1, &cmd2, output_folder)
+                    }
+                }
+                ArchiveFormat::TarZstd => {
+                    if cpus > 1 {
+                        if let Ok(_) = check_executable(&vec![paths.pzstd_path.as_str(), "-V"]) {
+                            let mut cmd2 = vec![paths.pzstd_path.as_str(), "-p", threads, "-", "-o", output_path];
+
+                            if quiet {
+                                cmd2.push("-q");
+                            }
+
+                            if best_compression {
+                                cmd2.push("--ultra");
+                                cmd2.push("-22");
+                            }
+
+                            return execute_two(&cmd1, &cmd2, output_folder);
+                        }
+                    }
+
+                    let mut cmd2 = vec![paths.zstd_path.as_str(), "-", "-o", output_path];
+
+                    if quiet {
+                        cmd2.push("-q");
+                    }
+
+                    if best_compression {
+                        cmd2.push("--ultra");
+                        cmd2.push("-22");
+                    }
+
+                    return execute_two(&cmd1, &cmd2, output_folder);
+                }
+                _ => panic!("should not be here")
             }
-
-            let result = archive(paths, quiet, cpus, password, true, best_compression, split, &vec![tar_output_path_string.clone()], output_path);
-
-            if let Err(error) = fs::remove_file(tar_output_path) {
-                return Err(error.to_string());
-            }
-
-            result
         }
         ArchiveFormat::Tar => {
             let mut input_paths_vec = Vec::<String>::new();
 
-            let mut cmd = vec![paths.tar_path.as_str(), "-r"];
+            let mut cmd = vec![paths.tar_path.as_str(), "-c"];
 
             if !quiet {
                 cmd.push("-v");
