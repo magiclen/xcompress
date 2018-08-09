@@ -438,7 +438,7 @@ impl Config {
                             path
                         }
                         Err(_) => {
-                            return Err(String::from("FFMPEG_PATH is incorrect."));
+                            return Err(format!("{} is incorrect.", name));
                         }
                     };
 
