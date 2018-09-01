@@ -1,6 +1,6 @@
 [package]
 name = "xcompress"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Magic Len <len@magiclen.org>"]
 repository = "https://github.com/magiclen/xcompress"
 homepage = "https://magiclen.org/xcompress"
@@ -9,6 +9,9 @@ categories = ["command-line-utilities"]
 description= "XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR, RAR and ZSTD."
 readme = "README.md"
 license = "MIT"
+
+[badges]
+travis-ci = { repository = "magiclen/xcompress", branch = "master" }
 
 [profile.release]
 panic = "abort"
