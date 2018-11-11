@@ -5,12 +5,14 @@ extern crate clap;
 extern crate num_cpus;
 extern crate subprocess;
 extern crate byte_unit;
+extern crate path_absolutize;
 
 use std::io::{ErrorKind, Read, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::env;
 use std::fs;
 use byte_unit::*;
+use path_absolutize::Absolutize;
 
 use subprocess::{Exec, ExitStatus, PopenError, Pipeline, NullFile};
 
@@ -352,12 +354,12 @@ impl Config {
                 )
                 .arg(Arg::with_name("OUTPUT_PATH")
                     .required(false)
-                    .help("Assigns a destination of your extracted files. It should be a file path.")
+                    .help("Assigns a destination of your extracted files. It should be a directory path.")
                 )
                 .arg(Arg::with_name("OUTPUT_PATH2")
                     .long("output")
                     .short("o")
-                    .help("Assigns a destination of your extracted files. It should be a file path.")
+                    .help("Assigns a destination of your extracted files. It should be a directory path.")
                     .takes_value(true)
                     .value_name("OUTPUT_PATH")
                     .display_order(1)
@@ -794,10 +796,6 @@ fn stream_to_file(result: Result<Box<Read>, String>, cwd: &str, file_name: &str)
 }
 
 fn execute_two_stream(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<Box<Read>, String> {
-    if let Err(error) = fs::create_dir_all(cwd) {
-        return Err(error.to_string());
-    }
-
     let process = { Exec::cmd(cmd1[0]).cwd(cwd).args(&cmd1[1..]) | Exec::cmd(cmd2[0]).cwd(cwd).args(&cmd2[1..]) };
 
     match process.stream_stdout() {
@@ -807,10 +805,6 @@ fn execute_two_stream(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<Box<Rea
 }
 
 fn execute_one_stream(cmd: &[&str], cwd: &str) -> Result<Box<Read>, String> {
-    if let Err(error) = fs::create_dir_all(cwd) {
-        return Err(error.to_string());
-    }
-
     let process = Exec::cmd(cmd[0]).cwd(cwd).args(&cmd[1..]);
 
     match process.stream_stdout() {
@@ -820,10 +814,6 @@ fn execute_one_stream(cmd: &[&str], cwd: &str) -> Result<Box<Read>, String> {
 }
 
 fn execute_two_quiet(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<i32, String> {
-    if let Err(error) = fs::create_dir_all(cwd) {
-        return Err(error.to_string());
-    }
-
     let process = { Exec::cmd(cmd1[0]).cwd(cwd).args(&cmd1[1..]) | Exec::cmd(cmd2[0]).cwd(cwd).args(&cmd2[1..]) }.stdout(NullFile {});
 
     match execute_join_pipeline(process) {
@@ -833,10 +823,6 @@ fn execute_two_quiet(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<i32, Str
 }
 
 fn execute_one_quiet(cmd: &[&str], cwd: &str) -> Result<i32, String> {
-    if let Err(error) = fs::create_dir_all(cwd) {
-        return Err(error.to_string());
-    }
-
     let process = Exec::cmd(cmd[0]).cwd(cwd).args(&cmd[1..]).stdout(NullFile {});
 
     match execute_join(process) {
@@ -846,10 +832,6 @@ fn execute_one_quiet(cmd: &[&str], cwd: &str) -> Result<i32, String> {
 }
 
 fn execute_two(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<i32, String> {
-    if let Err(error) = fs::create_dir_all(cwd) {
-        return Err(error.to_string());
-    }
-
     let process = { Exec::cmd(cmd1[0]).cwd(cwd).args(&cmd1[1..]) | Exec::cmd(cmd2[0]).cwd(cwd).args(&cmd2[1..]) };
 
     match execute_join_pipeline(process) {
@@ -859,10 +841,6 @@ fn execute_two(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<i32, String> {
 }
 
 fn execute_one(cmd: &[&str], cwd: &str) -> Result<i32, String> {
-    if let Err(error) = fs::create_dir_all(cwd) {
-        return Err(error.to_string());
-    }
-
     let process = Exec::cmd(cmd[0]).cwd(cwd).args(&cmd[1..]);
 
     match execute_join(process) {
@@ -963,6 +941,25 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
         Err(error) => return Err(error)
     };
 
+    let output_path = output_path_obj.to_str().unwrap();
+
+    let output_folder_obj = output_path_obj.parent().unwrap();
+
+    let output_folder = output_folder_obj.to_str().unwrap();
+
+    if output_path_obj.exists() {
+        if !output_path_obj.is_file() {
+            return Err(format!("{} is not a file.", output_path));
+        }
+        if let Err(error) = fs::remove_file(&output_path_obj) {
+            return Err(error.to_string());
+        }
+    } else {
+        if let Err(error) = fs::create_dir_all(output_folder) {
+            return Err(error.to_string());
+        }
+    }
+
     let threads = cpus.to_string();
     let threads = threads.as_str();
 
@@ -975,12 +972,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             cmd1.push("-f");
 
             cmd1.push("-");
-
-            if output_path_obj.exists() {
-                if let Err(error) = fs::remove_file(output_path) {
-                    return Err(error.to_string());
-                }
-            }
 
             for input_path in input_paths {
                 let input_path_obj = Path::new(input_path);
@@ -995,8 +986,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             for input_path in &input_paths_vec {
                 cmd1.push(&input_path);
             }
-
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
 
             match format {
                 ArchiveFormat::TarZ => {
@@ -1375,8 +1364,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 cmd.push(&input_path);
             }
 
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
-
             execute_one(&cmd, output_folder)
         }
         ArchiveFormat::Z => {
@@ -1393,8 +1380,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                     return Err(error.to_string());
                 }
             }
-
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
 
             let mut cmd = vec![paths.compress_path.as_str(), "-c", input_path];
 
@@ -1419,8 +1404,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                     return Err(error.to_string());
                 }
             }
-
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
 
             if cpus > 1 {
                 if let Ok(_) = check_executable(&vec![paths.pigz_path.as_str(), "-V"]) {
@@ -1498,8 +1481,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 }
             }
 
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
-
             if cpus > 1 {
                 if let Ok(_) = check_executable(&vec![paths.lbzip2_path.as_str(), "-V"]) {
                     let mut cmd = vec![paths.lbzip2_path.as_str(), "-z", "-c", "-n", threads, input_path];
@@ -1575,8 +1556,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 }
             }
 
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
-
             if cpus > 1 {
                 if let Ok(_) = check_executable(&vec![paths.plzip_path.as_str(), "-V"]) {
                     let mut cmd = vec![paths.plzip_path.as_str(), "-F", "-c", "-n", threads, input_path];
@@ -1631,8 +1610,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                     return Err(error.to_string());
                 }
             }
-
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
 
             if cpus > 1 {
                 if let Ok(_) = check_executable(&vec![paths.pxz_path.as_str(), "-V"]) {
@@ -1690,8 +1667,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                     return Err(error.to_string());
                 }
             }
-
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
 
             if cpus > 1 {
                 if let Ok(_) = check_executable(&vec![paths.pxz_path.as_str(), "-V"]) {
@@ -1776,8 +1751,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 }
             }
 
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
-
             if quiet {
                 execute_one_quiet(&cmd, output_folder)
             } else {
@@ -1785,13 +1758,24 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             }
         }
         ArchiveFormat::Zip => {
-            let mut output_path_obj = output_path_obj;
-            let output_folder_obj = output_path_obj.clone();
-            let output_folder_obj = output_folder_obj.parent().unwrap();
-            let output_folder = output_folder_obj.to_str().unwrap();
-
             let password_arg = format!("-p{}", create_cli_string(&password));
             let thread_arg = format!("-mmt{}", threads);
+
+            let output_tmp_path_obj = if let Some(_) = &split {
+                let new_filename = format!("{}.tmp.zip", output_path_obj.file_stem().unwrap().to_str().unwrap());
+
+                if output_path_obj.exists() {
+                    if let Err(error) = fs::remove_file(output_path) {
+                        return Err(error.to_string());
+                    }
+                }
+
+                Path::join(&output_folder_obj, Path::new(&new_filename))
+            } else {
+                output_path_obj.clone()
+            };
+
+            let output_tmp_path = output_tmp_path_obj.to_str().unwrap();
 
             let mut cmd = vec![paths.p7z_path.as_str(), "a", "-tzip", "-aoa", thread_arg.as_str()];
 
@@ -1803,28 +1787,17 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 cmd.push(password_arg.as_str());
             }
 
-            output_path_obj = if let Some(_) = &split {
-                let new_filename = format!("{}.tmp.zip", output_path_obj.file_stem().unwrap().to_str().unwrap());
-
-                if output_path_obj.exists() {
-                    if let Err(error) = fs::remove_file(output_path) {
-                        return Err(error.to_string());
-                    }
-                }
-
-                Path::join(&output_folder_obj, Path::new(&new_filename))
-            } else {
-                output_path_obj
-            };
-
-            cmd.push(output_path_obj.to_str().unwrap());
+            cmd.push(output_tmp_path);
 
             for input_path in input_paths {
                 cmd.push(input_path);
             }
 
-            if output_path_obj.exists() {
-                if let Err(error) = fs::remove_file(output_path_obj.to_str().unwrap()) {
+            if output_tmp_path_obj.exists() {
+                if !output_tmp_path_obj.is_file() {
+                    return Err(format!("{} is not a file.", output_tmp_path));
+                }
+                if let Err(error) = fs::remove_file(output_tmp_path) {
                     return Err(error.to_string());
                 }
             }
@@ -1850,7 +1823,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 }
 
                 let mut volume = String::from("");
-                let new_output_path_obj;
 
                 let mut cmd = vec![paths.zip_path.as_str()];
 
@@ -1876,26 +1848,20 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
 
                 cmd.push(&volume);
 
-                cmd.push(output_path_obj.to_str().unwrap());
+                cmd.push(output_tmp_path);
 
                 cmd.push("--out");
 
-                let filename = output_path_obj.file_stem().unwrap().to_str().unwrap();
-                let new_filename = format!("{}.zip", &filename[0..filename.len() - 4]);
-                new_output_path_obj = Path::join(&output_folder_obj, new_filename);
-                let output_path = output_path_obj.to_str().unwrap();
-                let new_output_path = new_output_path_obj.to_str().unwrap();
-
-                cmd.push(new_output_path);
+                cmd.push(output_path);
 
                 match execute_one(&cmd, output_folder) {
                     Ok(es) => {
-                        try_delete_file(output_path);
+                        try_delete_file(output_tmp_path);
                         return Ok(es);
                     }
                     Err(error) => {
+                        try_delete_file(output_tmp_path);
                         try_delete_file(output_path);
-                        try_delete_file(new_output_path);
                         return Err(error);
                     }
                 }
@@ -1941,14 +1907,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 cmd.push(input_path);
             }
 
-            if output_path_obj.exists() {
-                if let Err(error) = fs::remove_file(output_path) {
-                    return Err(error.to_string());
-                }
-            }
-
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
-
             execute_one(&cmd, output_folder)
         }
         ArchiveFormat::Zstd => {
@@ -1957,14 +1915,6 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
             }
 
             let input_path = &input_paths[0];
-
-            if output_path_obj.exists() {
-                if let Err(error) = fs::remove_file(output_path) {
-                    return Err(error.to_string());
-                }
-            }
-
-            let output_folder = output_path_obj.parent().unwrap().to_str().unwrap();
 
             if cpus > 1 {
                 if let Ok(_) = check_executable(&vec![paths.pzstd_path.as_str(), "-V"]) {
@@ -2009,6 +1959,23 @@ pub fn extract(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
         Ok(f) => f,
         Err(err) => return Err(String::from(err))
     };
+
+    let output_path_obj = match get_absolute_path(output_path) {
+        Ok(p) => p,
+        Err(error) => return Err(error)
+    };
+
+    let output_path = output_path_obj.to_str().unwrap();
+
+    if output_path_obj.exists() {
+        if !output_path_obj.is_dir() {
+            return Err(format!("{} is not a directory.", output_path));
+        }
+    } else {
+        if let Err(error) = fs::create_dir_all(&output_path_obj) {
+            return Err(error.to_string());
+        }
+    }
 
     let threads = cpus.to_string();
     let threads = threads.as_str();
@@ -2573,7 +2540,6 @@ pub fn extract(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 }
 
                 cmd.push(input_path);
-                cmd.push(output_path);
 
                 return execute_one(&cmd, output_path);
             }
@@ -2662,28 +2628,8 @@ fn create_cli_string(string: &str) -> String {
 fn get_absolute_path(path: &str) -> Result<PathBuf, String> {
     let path_obj = Path::new(path);
 
-    match path_obj.canonicalize() {
+    match path_obj.absolutize() {
         Ok(p) => Ok(p),
-        Err(ref error) if error.kind() == ErrorKind::NotFound => {
-            match fs::File::create(path_obj) {
-                Ok(_) => {
-                    match path_obj.canonicalize() {
-                        Ok(p) => {
-                            if let Err(_) = fs::remove_file(path) {
-                                Err(format!("{} is incorrect.", path))
-                            } else {
-                                Ok(p)
-                            }
-                        }
-                        Err(ref error) if error.kind() == ErrorKind::NotFound => {
-                            Err(format!("{} does not exist.", path))
-                        }
-                        Err(_) => Err(format!("{} is incorrect.", path))
-                    }
-                }
-                Err(_) => Err(format!("{} does not exist.", path))
-            }
-        }
         Err(_) => Err(format!("{} is incorrect.", path))
     }
 }
