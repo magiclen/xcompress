@@ -2517,6 +2517,9 @@ pub fn extract(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 cmd.push("-qq");
             }
 
+            cmd.push("-O");
+            cmd.push("UTF-8");
+
             cmd.push("-o");
             cmd.push(input_path);
             cmd.push("-d");
