@@ -894,11 +894,12 @@ pub fn run(config: Config) -> Result<i32, String> {
     };
     let quiet = config.quiet;
 
-    match config.mode {
+    let es = match config.mode {
         Mode::Archive(best_compression, split, input_paths, output_path) => {
             match output_path {
                 Some(p) => {
-                    archive(&paths, quiet, cpus, &password, false, best_compression, split, &input_paths, &p)?;
+                    let es = archive(&paths, quiet, cpus, &password, false, best_compression, split, &input_paths, &p)?;
+                    es
                 }
                 None => {
                     let current_dir = env::current_dir().unwrap();
@@ -907,25 +908,28 @@ pub fn run(config: Config) -> Result<i32, String> {
 
                     let output_path = Path::join(&current_dir, Path::new(&format!("{}.rar", input_path.file_name().unwrap().to_str().unwrap())));
 
-                    archive(&paths, quiet, cpus, &password, false, best_compression, split, &input_paths, output_path.to_str().unwrap())?;
+                    let es = archive(&paths, quiet, cpus, &password, false, best_compression, split, &input_paths, output_path.to_str().unwrap())?;
+                    es
                 }
             }
         }
         Mode::Extract(input_path, output_path) => {
             match output_path {
                 Some(p) => {
-                    extract(&paths, quiet, cpus, &password, false, &input_path, &p)?;
+                    let es = extract(&paths, quiet, cpus, &password, false, &input_path, &p)?;
+                    es
                 }
                 None => {
                     let current_dir = env::current_dir().unwrap();
 
-                    extract(&paths, quiet, cpus, &password, false, &input_path, current_dir.to_str().unwrap())?;
+                    let es = extract(&paths, quiet, cpus, &password, false, &input_path, current_dir.to_str().unwrap())?;
+                    es
                 }
             }
         }
-    }
+    };
 
-    Ok(0)
+    Ok(es)
 }
 
 // TODO -----Archive START-----
