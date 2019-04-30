@@ -1,6 +1,6 @@
 [package]
 name = "xcompress"
-version = "0.10.6"
+version = "0.10.7"
 authors = ["Magic Len <len@magiclen.org>"]
 repository = "https://github.com/magiclen/xcompress"
 homepage = "https://magiclen.org/xcompress"
@@ -19,6 +19,7 @@ panic = "abort"
 [dependencies]
 subprocess = "0.1.13"
 num_cpus = "1.8.0"
+terminal_size = "0.1"
 clap = "2.32.0"
 byte-unit = "2"
 path-absolutize = "1.1.1"

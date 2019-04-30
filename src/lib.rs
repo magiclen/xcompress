@@ -2,6 +2,7 @@
 //! XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR, RAR ans ZSTD.
 
 extern crate clap;
+extern crate terminal_size;
 extern crate num_cpus;
 extern crate subprocess;
 extern crate byte_unit;
@@ -11,11 +12,13 @@ use std::io::{ErrorKind, Read, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::env;
 use std::fs;
+
 use byte_unit::*;
 use path_absolutize::Absolutize;
 
 use subprocess::{Exec, ExitStatus, PopenError, Pipeline, NullFile};
 
+use terminal_size::{Width, terminal_size};
 use clap::{App, Arg, SubCommand};
 
 // TODO -----Config START-----
@@ -142,7 +145,14 @@ impl Config {
             "x -p password foo.rar          # Extracts foo.rar with a password into current working directory"
         ];
 
+        let terminal_width = if let Some((Width(width), _)) = terminal_size() {
+            width as usize
+        } else {
+            0
+        };
+
         let matches = App::new(APP_NAME)
+            .set_term_width(terminal_width)
             .version(CARGO_PKG_VERSION)
             .author(CARGO_PKG_AUTHORS)
             .about(format!("XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR and RAR.\n\nEXAMPLES:\n{}", examples.iter()
