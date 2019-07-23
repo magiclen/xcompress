@@ -499,7 +499,7 @@ impl Config {
 
             let input_path = sub_matches.value_of("INPUT_PATH").unwrap();
 
-            let mut path = Path::new(input_path);
+            let path = Path::new(input_path);
 
             match path.canonicalize() {
                 Ok(path) => {
@@ -552,7 +552,7 @@ impl Config {
             let input_path = sub_matches.values_of("INPUT_PATH").unwrap();
 
             let output_path = sub_matches.value_of("OUTPUT_PATH");
-            let mut output_path = match output_path {
+            let output_path = match output_path {
                 Some(p) => {
                     Some(String::from(p))
                 }
@@ -564,7 +564,7 @@ impl Config {
             let mut input_paths = Vec::new();
 
             for input_path in input_path {
-                let mut path = Path::new(input_path);
+                let path = Path::new(input_path);
 
                 match path.canonicalize() {
                     Ok(path) => {
@@ -583,7 +583,7 @@ impl Config {
 
             let split = match sub_matches.value_of("SPLIT") {
                 Some(d) => {
-                    match Byte::from_string(d) {
+                    match Byte::from_str(d) {
                         Ok(byte) => {
                             if byte.get_bytes() < 65536 {
                                 return Err(String::from("Your split size is too small."));
@@ -592,14 +592,11 @@ impl Config {
                         }
                         Err(error) => {
                             match error {
-                                ByteError::ValueIncorrect => {
-                                    return Err(String::from("The value of your split size is incorrect."));
+                                ByteError::ValueIncorrect(s) => {
+                                    return Err(s);
                                 }
-                                ByteError::UnitIncorrect => {
-                                    return Err(String::from("The unit of your split size is incorrect."));
-                                }
-                                ByteError::ParseError => {
-                                    return Err(String::from("Your split size is incorrect."));
+                                ByteError::UnitIncorrect(s) => {
+                                    return Err(s);
                                 }
                             }
                         }
@@ -757,7 +754,7 @@ fn execute_one_stream_to_file(cmd: &[&str], cwd: &str, file_name: &str) -> Resul
     stream_to_file(execute_one_stream(cmd, cwd), cwd, file_name)
 }
 
-fn stream_to_file(result: Result<Box<Read>, String>, cwd: &str, file_name: &str) -> Result<(), String> {
+fn stream_to_file(result: Result<Box<dyn Read>, String>, cwd: &str, file_name: &str) -> Result<(), String> {
     match result {
         Ok(read) => {
             let mut reader = BufReader::new(read);
@@ -805,7 +802,7 @@ fn stream_to_file(result: Result<Box<Read>, String>, cwd: &str, file_name: &str)
     }
 }
 
-fn execute_two_stream(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<Box<Read>, String> {
+fn execute_two_stream(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<Box<dyn Read>, String> {
     let process = { Exec::cmd(cmd1[0]).cwd(cwd).args(&cmd1[1..]) | Exec::cmd(cmd2[0]).cwd(cwd).args(&cmd2[1..]) };
 
     match process.stream_stdout() {
@@ -814,7 +811,7 @@ fn execute_two_stream(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<Box<Rea
     }
 }
 
-fn execute_one_stream(cmd: &[&str], cwd: &str) -> Result<Box<Read>, String> {
+fn execute_one_stream(cmd: &[&str], cwd: &str) -> Result<Box<dyn Read>, String> {
     let process = Exec::cmd(cmd[0]).cwd(cwd).args(&cmd[1..]);
 
     match process.stream_stdout() {
@@ -1003,7 +1000,7 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
 
             match format {
                 ArchiveFormat::TarZ => {
-                    let mut cmd2 = vec![paths.compress_path.as_str(), "-c", "-"];
+                    let cmd2 = vec![paths.compress_path.as_str(), "-c", "-"];
 
                     match execute_two_stream_to_file(&cmd1, &cmd2, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
                         Ok(_) => {
@@ -1395,7 +1392,7 @@ pub fn archive(paths: &ExePaths, quiet: bool, cpus: usize, password: &str, exlud
                 }
             }
 
-            let mut cmd = vec![paths.compress_path.as_str(), "-c", input_path];
+            let cmd = vec![paths.compress_path.as_str(), "-c", input_path];
 
             match execute_one_stream_to_file(&cmd, output_folder, output_path_obj.file_name().unwrap().to_str().unwrap()) {
                 Ok(_) => {
