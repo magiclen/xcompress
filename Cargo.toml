@@ -10,8 +10,9 @@ description= "XCompress is a free file archiver utility on Linux, providing mult
 readme = "README.md"
 license = "MIT"
 
-[badges]
-travis-ci = { repository = "magiclen/xcompress", branch = "master" }
+[badges.travis-ci]
+repository = "magiclen/xcompress"
+branch = "master"
 
 [profile.release]
 panic = "abort"
