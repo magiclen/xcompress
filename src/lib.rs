@@ -574,22 +574,26 @@ impl Config {
             }
 
             let split = match sub_matches.value_of("SPLIT") {
-                Some(d) => match Byte::from_str(d) {
-                    Ok(byte) => {
-                        if byte.get_bytes() < 65536 {
-                            return Err(String::from("Your split size is too small."));
+                Some(d) => {
+                    match Byte::from_str(d) {
+                        Ok(byte) => {
+                            if byte.get_bytes() < 65536 {
+                                return Err(String::from("Your split size is too small."));
+                            }
+                            Some(byte)
                         }
-                        Some(byte)
+                        Err(error) => {
+                            match error {
+                                ByteError::ValueIncorrect(s) => {
+                                    return Err(s);
+                                }
+                                ByteError::UnitIncorrect(s) => {
+                                    return Err(s);
+                                }
+                            }
+                        }
                     }
-                    Err(error) => match error {
-                        ByteError::ValueIncorrect(s) => {
-                            return Err(s);
-                        }
-                        ByteError::UnitIncorrect(s) => {
-                            return Err(s);
-                        }
-                    },
-                },
+                }
                 None => None,
             };
 
@@ -868,24 +872,28 @@ fn execute_one(cmd: &[&str], cwd: &str) -> Result<i32, String> {
 
 fn execute_join_pipeline(process: Pipeline) -> Result<i32, PopenError> {
     match process.join() {
-        Ok(es) => match es {
-            ExitStatus::Exited(c) => Ok(c as i32),
-            ExitStatus::Signaled(c) => Ok(i32::from(c)),
-            ExitStatus::Other(c) => Ok(c),
-            _ => Ok(-1),
-        },
+        Ok(es) => {
+            match es {
+                ExitStatus::Exited(c) => Ok(c as i32),
+                ExitStatus::Signaled(c) => Ok(i32::from(c)),
+                ExitStatus::Other(c) => Ok(c),
+                _ => Ok(-1),
+            }
+        }
         Err(error) => Err(error),
     }
 }
 
 fn execute_join(process: Exec) -> Result<i32, PopenError> {
     match process.join() {
-        Ok(es) => match es {
-            ExitStatus::Exited(c) => Ok(c as i32),
-            ExitStatus::Signaled(c) => Ok(i32::from(c)),
-            ExitStatus::Other(c) => Ok(c),
-            _ => Ok(-1),
-        },
+        Ok(es) => {
+            match es {
+                ExitStatus::Exited(c) => Ok(c as i32),
+                ExitStatus::Signaled(c) => Ok(i32::from(c)),
+                ExitStatus::Other(c) => Ok(c),
+                _ => Ok(-1),
+            }
+        }
         Err(error) => Err(error),
     }
 }
@@ -903,60 +911,66 @@ pub fn run(config: Config) -> Result<i32, String> {
     let quiet = config.quiet;
 
     let es = match config.mode {
-        Mode::Archive(best_compression, split, input_paths, output_path) => match output_path {
-            Some(p) => archive(
-                &paths,
-                quiet,
-                cpus,
-                &password,
-                false,
-                best_compression,
-                split,
-                &input_paths,
-                &p,
-            )?,
-            None => {
-                let current_dir = env::current_dir().unwrap();
+        Mode::Archive(best_compression, split, input_paths, output_path) => {
+            match output_path {
+                Some(p) => {
+                    archive(
+                        &paths,
+                        quiet,
+                        cpus,
+                        &password,
+                        false,
+                        best_compression,
+                        split,
+                        &input_paths,
+                        &p,
+                    )?
+                }
+                None => {
+                    let current_dir = env::current_dir().unwrap();
 
-                let input_path = Path::new(&input_paths[0]);
+                    let input_path = Path::new(&input_paths[0]);
 
-                let output_path = Path::join(
-                    &current_dir,
-                    Path::new(&format!(
-                        "{}.rar",
-                        input_path.file_name().unwrap().to_str().unwrap()
-                    )),
-                );
+                    let output_path = Path::join(
+                        &current_dir,
+                        Path::new(&format!(
+                            "{}.rar",
+                            input_path.file_name().unwrap().to_str().unwrap()
+                        )),
+                    );
 
-                archive(
-                    &paths,
-                    quiet,
-                    cpus,
-                    &password,
-                    false,
-                    best_compression,
-                    split,
-                    &input_paths,
-                    output_path.to_str().unwrap(),
-                )?
+                    archive(
+                        &paths,
+                        quiet,
+                        cpus,
+                        &password,
+                        false,
+                        best_compression,
+                        split,
+                        &input_paths,
+                        output_path.to_str().unwrap(),
+                    )?
+                }
             }
-        },
-        Mode::Extract(input_path, output_path) => match output_path {
-            Some(p) => extract(&paths, quiet, cpus, &password, false, &input_path, &p)?,
-            None => {
-                let current_dir = env::current_dir().unwrap();
+        }
+        Mode::Extract(input_path, output_path) => {
+            match output_path {
+                Some(p) => extract(&paths, quiet, cpus, &password, false, &input_path, &p)?,
+                None => {
+                    let current_dir = env::current_dir().unwrap();
 
-                extract(
-                    &paths,
-                    quiet,
-                    cpus,
-                    &password,
-                    false,
-                    &input_path,
-                    current_dir.to_str().unwrap(),
-                )?
+                    extract(
+                        &paths,
+                        quiet,
+                        cpus,
+                        &password,
+                        false,
+                        &input_path,
+                        current_dir.to_str().unwrap(),
+                    )?
+                }
             }
-        },
+        }
     };
 
     Ok(es)
