@@ -815,7 +815,7 @@ fn execute_two_stream(cmd1: &[&str], cmd2: &[&str], cwd: &str) -> Result<Box<dyn
     };
 
     match process.stream_stdout() {
-        Ok(read) => Ok(read),
+        Ok(read) => Ok(Box::new(read)),
         Err(error) => Err(error.to_string()),
     }
 }
@@ -824,7 +824,7 @@ fn execute_one_stream(cmd: &[&str], cwd: &str) -> Result<Box<dyn Read>, String> 
     let process = Exec::cmd(cmd[0]).cwd(cwd).args(&cmd[1..]);
 
     match process.stream_stdout() {
-        Ok(read) => Ok(read),
+        Ok(read) => Ok(Box::new(read)),
         Err(error) => Err(error.to_string()),
     }
 }
