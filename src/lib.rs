@@ -179,7 +179,7 @@ impl Config {
                 .global(true)
                 .long("password")
                 .short("p")
-                .help("Sets password for your archive file. (Only supports 7Z, ZIP and RAR.)")
+                .help("Sets password for your archive file. (Only supports 7Z, ZIP and RAR.) Set an empty string to read a password from stdin.")
                 .takes_value(true)
                 .empty_values(true)
                 .display_order(0)
