@@ -28,7 +28,8 @@ FLAGS:
     -V, --version          Prints version information
 
 OPTIONS:
-    -p, --password <PASSWORD>              Sets password for your archive file. (Only supports 7Z, ZIP and RAR.) Set an empty string to read a password from stdin.
+    -p, --password <PASSWORD>              Sets password for your archive file. (Only supports 7Z, ZIP and RAR.) Set an
+                                           empty string to read a password from stdin.
         --7z-path <7Z_PATH>                Specifies the path of your 7z executable binary file. [default: 7z]
         --bunzip2-path <BUNZIP2_PATH>      Specifies the path of your bunzip2 executable binary file. [default: bunzip2]
         --bzip2-path <BZIP2_PATH>          Specifies the path of your bzip2 executable binary file. [default: bzip2]
