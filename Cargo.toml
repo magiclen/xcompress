@@ -1,6 +1,6 @@
 [package]
 name = "xcompress"
-version = "0.10.10"
+version = "0.11.0"
 authors = ["Magic Len <len@magiclen.org>"]
 edition = "2018"
 repository = "https://github.com/magiclen/xcompress"
@@ -25,3 +25,4 @@ terminal_size = "0.1"
 clap = "2.32.0"
 byte-unit = "3"
 path-absolutize = "1.1.1"
+scanner-rust = "1.2.4"

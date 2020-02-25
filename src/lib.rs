@@ -5,16 +5,18 @@ extern crate byte_unit;
 extern crate clap;
 extern crate num_cpus;
 extern crate path_absolutize;
+extern crate scanner_rust;
 extern crate subprocess;
 extern crate terminal_size;
 
 use std::env;
 use std::fs;
-use std::io::{BufReader, BufWriter, ErrorKind, Read, Write};
+use std::io::{self, BufReader, BufWriter, ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
 use byte_unit::*;
 use path_absolutize::Absolutize;
+use scanner_rust::Scanner;
 
 use subprocess::{Exec, ExitStatus, NullFile, Pipeline, PopenError};
 
@@ -125,7 +127,7 @@ pub struct Config {
     pub paths: ExePaths,
     pub quiet: bool,
     pub single_thread: bool,
-    pub password: String,
+    pub password: Option<String>,
     pub mode: Mode,
 }
 
@@ -179,6 +181,7 @@ impl Config {
                 .short("p")
                 .help("Sets password for your archive file. (Only supports 7Z, ZIP and RAR.)")
                 .takes_value(true)
+                .empty_values(true)
                 .display_order(0)
             )
             .arg(Arg::with_name("COMPRESS_PATH")
@@ -487,10 +490,7 @@ impl Config {
             pzstd_path = get_executable_path("PZSTD_PATH", DEFAULT_PZSTD_PATH)?;
         }
 
-        password = match matches.value_of("PASSWORD") {
-            Some(p) => String::from(p),
-            None => String::from(""),
-        };
+        password = matches.value_of("PASSWORD").map(String::from);
 
         let mode = if matches.is_present("x") {
             let sub_matches = matches.subcommand_matches("x").unwrap();
@@ -901,7 +901,7 @@ fn execute_join(process: Exec) -> Result<i32, PopenError> {
 // TODO -----Process END-----
 
 pub fn run(config: Config) -> Result<i32, String> {
-    let password = config.password;
+    let password = read_password(config.password)?;
     let paths = config.paths;
     let cpus = if config.single_thread {
         1
@@ -2870,6 +2870,26 @@ fn get_absolute_path(path: &str) -> Result<PathBuf, String> {
     match path_obj.absolutize() {
         Ok(p) => Ok(p),
         Err(_) => Err(format!("{} is incorrect.", path)),
+    }
+}
+
+fn read_password(password: Option<String>) -> Result<String, String> {
+    match password {
+        Some(password) => {
+            if password.is_empty() {
+                print!("Password (visible): ");
+                io::stdout().flush().map_err(|err| err.to_string())?;
+
+                let mut sc = Scanner::scan_stream(io::stdin());
+
+                sc.next_line()
+                    .map_err(|e| e.to_string())?
+                    .ok_or_else(|| String::from("Stdin is closed."))
+            } else {
+                Ok(password)
+            }
+        }
+        None => Ok(String::from("")),
     }
 }
 
