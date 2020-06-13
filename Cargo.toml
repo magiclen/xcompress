@@ -1,6 +1,6 @@
 [package]
 name = "xcompress"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["Magic Len <len@magiclen.org>"]
 edition = "2018"
 repository = "https://github.com/magiclen/xcompress"
@@ -19,10 +19,15 @@ branch = "master"
 panic = "abort"
 
 [dependencies]
-subprocess = "0.2"
-num_cpus = "1.8.0"
+clap = "2.33.1"
+concat-with = "0.2"
 terminal_size = "0.1"
-clap = "2.32.0"
+
+execute = "0.2.4"
+num_cpus = "1.8.0"
 byte-unit = "3"
-path-absolutize = "1.1.1"
-scanner-rust = "1.2.4"
+scanner-rust = "2.0.9"
+
+[dependencies.path-absolutize]
+version = "3"
+features = ["lazy_static_cache"]
