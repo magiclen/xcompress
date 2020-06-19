@@ -14,6 +14,7 @@ extern crate byte_unit;
 extern crate scanner_rust;
 
 use std::borrow::Cow;
+use std::error::Error;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::Path;
@@ -62,7 +63,7 @@ const DEFAULT_ZSTD_PATH: &str = "zstd";
 const DEFAULT_UNZSTD_PATH: &str = "unzstd";
 const DEFAULT_PZSTD_PATH: &str = "pzstd";
 
-fn main() -> Result<(), String> {
+fn main() -> Result<(), Box<dyn Error>> {
     let matches = get_matches();
 
     if let Some(sub_matches) = matches.subcommand_matches("x") {
@@ -71,10 +72,9 @@ fn main() -> Result<(), String> {
         let input_path = Path::new(input_path);
 
         if !input_path.exists() {
-            return Err(format!(
-                "{} does not exist.",
-                input_path.absolutize().map_err(|err| err.to_string())?.to_string_lossy()
-            ));
+            return Err(
+                format!("{} does not exist.", input_path.absolutize()?.to_string_lossy()).into()
+            );
         }
 
         let mut output_path = sub_matches.value_of("OUTPUT_PATH");
@@ -83,7 +83,7 @@ fn main() -> Result<(), String> {
         if let Some(a) = output_path.as_ref() {
             if let Some(b) = output_path2.as_ref() {
                 if a != b {
-                    return Err(String::from("You input different output paths."));
+                    return Err("You input different output paths.".into());
                 }
             }
         } else {
@@ -107,8 +107,9 @@ fn main() -> Result<(), String> {
             if !input_path.exists() {
                 return Err(format!(
                     "{} does not exist.",
-                    input_path.absolutize().map_err(|err| err.to_string())?.to_string_lossy()
-                ));
+                    input_path.absolutize()?.to_string_lossy()
+                )
+                .into());
             }
 
             input_paths.push(input_path);
@@ -143,7 +144,7 @@ fn handle_archive<'a>(
     output_path: Cow<Path>,
     best_compression: bool,
     split: Option<&str>,
-) -> Result<(), String> {
+) -> Result<(), Box<dyn Error>> {
     let single_thread = matches.is_present("SINGLE_THREAD");
     let quiet = matches.is_present("QUIET");
 
@@ -153,23 +154,22 @@ fn handle_archive<'a>(
         num_cpus::get()
     };
 
-    let format = ArchiveFormat::get_archive_format_from_file_path(output_path.as_ref())
-        .map_err(|err| err.to_string())?;
+    let format = ArchiveFormat::get_archive_format_from_file_path(output_path.as_ref())?;
 
-    let output_path = output_path.absolutize().map_err(|err| err.to_string())?;
+    let output_path = output_path.absolutize()?;
 
     match output_path.metadata() {
         Ok(metadata) => {
             if metadata.is_dir() {
-                return Err(format!("{} is a directory.", output_path.to_string_lossy()));
+                return Err(format!("{} is a directory.", output_path.to_string_lossy()).into());
             }
 
-            fs::remove_file(output_path.as_ref()).map_err(|err| err.to_string())?;
+            fs::remove_file(output_path.as_ref())?;
         }
         Err(_) => {
             let output_path_parent = output_path.parent().unwrap();
 
-            fs::create_dir_all(output_path_parent).map_err(|err| err.to_string())?;
+            fs::create_dir_all(output_path_parent)?;
         }
     }
 
@@ -190,7 +190,7 @@ fn handle_archive<'a>(
             let mut command1 = command_args!(tar_path, "-c", "-f", "-");
 
             for input_path in input_paths {
-                let input_path = input_path.absolutize().map_err(|err| err.to_string())?;
+                let input_path = input_path.absolutize()?;
                 let input_path_parent = input_path.parent().unwrap();
                 let file_name = input_path.file_name().unwrap();
 
@@ -205,13 +205,12 @@ fn handle_archive<'a>(
 
                     let mut command2 = command_args!(compress_path, "-c", "-");
 
-                    command2
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command2.stdout(File::create(output_path.as_ref())?);
 
                     let output =
                         command1.execute_multiple_output(&mut [&mut command2]).map_err(|err| {
                             try_delete_file(output_path.as_ref());
-                            err.to_string()
+                            err
                         })?;
 
                     match output.status.code() {
@@ -244,16 +243,13 @@ fn handle_archive<'a>(
                                 command2.arg("-11");
                             }
 
-                            command2.stdout(
-                                File::create(output_path.as_ref())
-                                    .map_err(|err| err.to_string())?,
-                            );
+                            command2.stdout(File::create(output_path.as_ref())?);
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
                                 .map_err(|err| {
                                     try_delete_file(output_path.as_ref());
-                                    err.to_string()
+                                    err
                                 })?;
 
                             match output.status.code() {
@@ -284,13 +280,12 @@ fn handle_archive<'a>(
                         command2.arg("-9");
                     }
 
-                    command2
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command2.stdout(File::create(output_path.as_ref())?);
 
                     let output =
                         command1.execute_multiple_output(&mut [&mut command2]).map_err(|err| {
                             try_delete_file(output_path.as_ref());
-                            err.to_string()
+                            err
                         })?;
 
                     match output.status.code() {
@@ -326,16 +321,13 @@ fn handle_archive<'a>(
                                 command2.arg("-9");
                             }
 
-                            command2.stdout(
-                                File::create(output_path.as_ref())
-                                    .map_err(|err| err.to_string())?,
-                            );
+                            command2.stdout(File::create(output_path.as_ref())?);
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
                                 .map_err(|err| {
                                     try_delete_file(output_path.as_ref());
-                                    err.to_string()
+                                    err
                                 })?;
 
                             match output.status.code() {
@@ -375,16 +367,13 @@ fn handle_archive<'a>(
                                 command2.arg("-9");
                             }
 
-                            command2.stdout(
-                                File::create(output_path.as_ref())
-                                    .map_err(|err| err.to_string())?,
-                            );
+                            command2.stdout(File::create(output_path.as_ref())?);
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
                                 .map_err(|err| {
                                     try_delete_file(output_path.as_ref());
-                                    err.to_string()
+                                    err
                                 })?;
 
                             match output.status.code() {
@@ -415,13 +404,12 @@ fn handle_archive<'a>(
                         command2.arg("-9");
                     }
 
-                    command2
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command2.stdout(File::create(output_path.as_ref())?);
 
                     let output =
                         command1.execute_multiple_output(&mut [&mut command2]).map_err(|err| {
                             try_delete_file(output_path.as_ref());
-                            err.to_string()
+                            err
                         })?;
 
                     match output.status.code() {
@@ -455,16 +443,13 @@ fn handle_archive<'a>(
                                 command2.arg("-9");
                             }
 
-                            command2.stdout(
-                                File::create(output_path.as_ref())
-                                    .map_err(|err| err.to_string())?,
-                            );
+                            command2.stdout(File::create(output_path.as_ref())?);
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
                                 .map_err(|err| {
                                     try_delete_file(output_path.as_ref());
-                                    err.to_string()
+                                    err
                                 })?;
 
                             match output.status.code() {
@@ -495,13 +480,12 @@ fn handle_archive<'a>(
                         command2.arg("-9");
                     }
 
-                    command2
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command2.stdout(File::create(output_path.as_ref())?);
 
                     let output =
                         command1.execute_multiple_output(&mut [&mut command2]).map_err(|err| {
                             try_delete_file(output_path.as_ref());
-                            err.to_string()
+                            err
                         })?;
 
                     match output.status.code() {
@@ -534,16 +518,13 @@ fn handle_archive<'a>(
                                 command2.args(&["-9", "-e"]);
                             }
 
-                            command2.stdout(
-                                File::create(output_path.as_ref())
-                                    .map_err(|err| err.to_string())?,
-                            );
+                            command2.stdout(File::create(output_path.as_ref())?);
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
                                 .map_err(|err| {
                                     try_delete_file(output_path.as_ref());
-                                    err.to_string()
+                                    err
                                 })?;
 
                             match output.status.code() {
@@ -574,13 +555,12 @@ fn handle_archive<'a>(
                         command2.args(&["-9", "-e"]);
                     }
 
-                    command2
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command2.stdout(File::create(output_path.as_ref())?);
 
                     let output =
                         command1.execute_multiple_output(&mut [&mut command2]).map_err(|err| {
                             try_delete_file(output_path.as_ref());
-                            err.to_string()
+                            err
                         })?;
 
                     match output.status.code() {
@@ -614,16 +594,13 @@ fn handle_archive<'a>(
                                 command2.args(&["-9", "-e"]);
                             }
 
-                            command2.stdout(
-                                File::create(output_path.as_ref())
-                                    .map_err(|err| err.to_string())?,
-                            );
+                            command2.stdout(File::create(output_path.as_ref())?);
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
                                 .map_err(|err| {
                                     try_delete_file(output_path.as_ref());
-                                    err.to_string()
+                                    err
                                 })?;
 
                             match output.status.code() {
@@ -654,13 +631,12 @@ fn handle_archive<'a>(
                         command2.args(&["-9", "-e"]);
                     }
 
-                    command2
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command2.stdout(File::create(output_path.as_ref())?);
 
                     let output =
                         command1.execute_multiple_output(&mut [&mut command2]).map_err(|err| {
                             try_delete_file(output_path.as_ref());
-                            err.to_string()
+                            err
                         })?;
 
                     match output.status.code() {
@@ -702,10 +678,10 @@ fn handle_archive<'a>(
                     }
 
                     if let Some(d) = split {
-                        let byte = Byte::from_str(d).map_err(|err| err.to_string())?;
+                        let byte = Byte::from_str(d)?;
 
                         if byte.get_bytes() < 65536 {
-                            return Err(String::from("The split size is too small."));
+                            return Err("The split size is too small.".into());
                         } else {
                             command2.arg(format!(
                                 "-v{}k",
@@ -718,15 +694,10 @@ fn handle_archive<'a>(
 
                     if quiet {
                         process::exit(
-                            command1
-                                .execute_multiple(&mut [&mut command2])
-                                .map_err(|err| err.to_string())?
-                                .unwrap_or(1),
+                            command1.execute_multiple(&mut [&mut command2])?.unwrap_or(1),
                         );
                     } else {
-                        let output = command1
-                            .execute_multiple_output(&mut [&mut command2])
-                            .map_err(|err| err.to_string())?;
+                        let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                         process::exit(output.status.code().unwrap_or(1));
                     }
@@ -754,9 +725,7 @@ fn handle_archive<'a>(
                                 command2.args(&["--ultra", "-22"]);
                             }
 
-                            let output = command1
-                                .execute_multiple_output(&mut [&mut command2])
-                                .map_err(|err| err.to_string())?;
+                            let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                             process::exit(output.status.code().unwrap_or(1));
                         }
@@ -774,9 +743,7 @@ fn handle_archive<'a>(
                         command2.args(&["--ultra", "-22"]);
                     }
 
-                    let output = command1
-                        .execute_multiple_output(&mut [&mut command2])
-                        .map_err(|err| err.to_string())?;
+                    let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -797,7 +764,7 @@ fn handle_archive<'a>(
             command.arg(output_path.as_ref());
 
             for input_path in input_paths {
-                let input_path = input_path.absolutize().map_err(|err| err.to_string())?;
+                let input_path = input_path.absolutize()?;
                 let input_path_parent = input_path.parent().unwrap();
                 let file_name = input_path.file_name().unwrap();
 
@@ -806,13 +773,13 @@ fn handle_archive<'a>(
                 command.arg(file_name);
             }
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
         ArchiveFormat::Z => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err(String::from("Obviously, you should use .tar.Z for filename extension to support multiple files."));
+                return Err("Obviously, you should use .tar.Z for filename extension to support multiple files.".into());
             }
 
             let input_path = &input_paths[0];
@@ -821,11 +788,11 @@ fn handle_archive<'a>(
 
             let mut command = command_args!(compress_path, "-c", input_path);
 
-            command.stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+            command.stdout(File::create(output_path.as_ref())?);
 
             let output = command.execute_output().map_err(|err| {
                 try_delete_file(output_path.as_ref());
-                err.to_string()
+                err
             })?;
 
             match output.status.code() {
@@ -844,7 +811,7 @@ fn handle_archive<'a>(
         }
         ArchiveFormat::Gzip => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err(String::from("Obviously, you should use .tar.gz for filename extension to support multiple files."));
+                return Err("Obviously, you should use .tar.gz for filename extension to support multiple files.".into());
             }
 
             let input_path = &input_paths[0];
@@ -863,12 +830,11 @@ fn handle_archive<'a>(
                         command.arg("-11");
                     }
 
-                    command
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command.stdout(File::create(output_path.as_ref())?);
 
                     let output = command.execute_output().map_err(|err| {
                         try_delete_file(output_path.as_ref());
-                        err.to_string()
+                        err
                     })?;
 
                     match output.status.code() {
@@ -899,11 +865,11 @@ fn handle_archive<'a>(
                 command.arg("-9");
             }
 
-            command.stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+            command.stdout(File::create(output_path.as_ref())?);
 
             let output = command.execute_output().map_err(|err| {
                 try_delete_file(output_path.as_ref());
-                err.to_string()
+                err
             })?;
 
             match output.status.code() {
@@ -922,7 +888,7 @@ fn handle_archive<'a>(
         }
         ArchiveFormat::Bzip2 => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err(String::from("Obviously, you should use .tar.bz2 for filename extension to support multiple files."));
+                return Err("Obviously, you should use .tar.bz2 for filename extension to support multiple files.".into());
             }
 
             let input_path = &input_paths[0];
@@ -942,12 +908,11 @@ fn handle_archive<'a>(
                         command.arg("-9");
                     }
 
-                    command
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command.stdout(File::create(output_path.as_ref())?);
 
                     let output = command.execute_output().map_err(|err| {
                         try_delete_file(output_path.as_ref());
-                        err.to_string()
+                        err
                     })?;
 
                     match output.status.code() {
@@ -984,12 +949,11 @@ fn handle_archive<'a>(
                         command.arg("-9");
                     }
 
-                    command
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command.stdout(File::create(output_path.as_ref())?);
 
                     let output = command.execute_output().map_err(|err| {
                         try_delete_file(output_path.as_ref());
-                        err.to_string()
+                        err
                     })?;
 
                     match output.status.code() {
@@ -1020,11 +984,11 @@ fn handle_archive<'a>(
                 command.arg("-9");
             }
 
-            command.stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+            command.stdout(File::create(output_path.as_ref())?);
 
             let output = command.execute_output().map_err(|err| {
                 try_delete_file(output_path.as_ref());
-                err.to_string()
+                err
             })?;
 
             match output.status.code() {
@@ -1043,7 +1007,7 @@ fn handle_archive<'a>(
         }
         ArchiveFormat::Lz => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err(String::from("Obviously, you should use .tar.lz for filename extension to support multiple files."));
+                return Err("Obviously, you should use .tar.lz for filename extension to support multiple files.".into());
             }
 
             let input_path = &input_paths[0];
@@ -1063,12 +1027,11 @@ fn handle_archive<'a>(
                         command.arg("-9");
                     }
 
-                    command
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command.stdout(File::create(output_path.as_ref())?);
 
                     let output = command.execute_output().map_err(|err| {
                         try_delete_file(output_path.as_ref());
-                        err.to_string()
+                        err
                     })?;
 
                     match output.status.code() {
@@ -1099,11 +1062,11 @@ fn handle_archive<'a>(
                 command.arg("-9");
             }
 
-            command.stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+            command.stdout(File::create(output_path.as_ref())?);
 
             let output = command.execute_output().map_err(|err| {
                 try_delete_file(output_path.as_ref());
-                err.to_string()
+                err
             })?;
 
             match output.status.code() {
@@ -1122,7 +1085,7 @@ fn handle_archive<'a>(
         }
         ArchiveFormat::Xz => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err(String::from("Obviously, you should use .tar.xz for filename extension to support multiple files."));
+                return Err("Obviously, you should use .tar.xz for filename extension to support multiple files.".into());
             }
 
             let input_path = &input_paths[0];
@@ -1142,12 +1105,11 @@ fn handle_archive<'a>(
                         command.args(&["-9", "-e"]);
                     }
 
-                    command
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command.stdout(File::create(output_path.as_ref())?);
 
                     let output = command.execute_output().map_err(|err| {
                         try_delete_file(output_path.as_ref());
-                        err.to_string()
+                        err
                     })?;
 
                     match output.status.code() {
@@ -1178,11 +1140,11 @@ fn handle_archive<'a>(
                 command.args(&["-9", "-e"]);
             }
 
-            command.stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+            command.stdout(File::create(output_path.as_ref())?);
 
             let output = command.execute_output().map_err(|err| {
                 try_delete_file(output_path.as_ref());
-                err.to_string()
+                err
             })?;
 
             match output.status.code() {
@@ -1201,7 +1163,7 @@ fn handle_archive<'a>(
         }
         ArchiveFormat::Lzma => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err(String::from("Obviously, you should use .tar.lzma for filename extension to support multiple files."));
+                return Err("Obviously, you should use .tar.lzma for filename extension to support multiple files.".into());
             }
 
             let input_path = &input_paths[0];
@@ -1222,12 +1184,11 @@ fn handle_archive<'a>(
                         command.args(&["-9", "-e"]);
                     }
 
-                    command
-                        .stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+                    command.stdout(File::create(output_path.as_ref())?);
 
                     let output = command.execute_output().map_err(|err| {
                         try_delete_file(output_path.as_ref());
-                        err.to_string()
+                        err
                     })?;
 
                     match output.status.code() {
@@ -1258,11 +1219,11 @@ fn handle_archive<'a>(
                 command.args(&["-9", "-e"]);
             }
 
-            command.stdout(File::create(output_path.as_ref()).map_err(|err| err.to_string())?);
+            command.stdout(File::create(output_path.as_ref())?);
 
             let output = command.execute_output().map_err(|err| {
                 try_delete_file(output_path.as_ref());
-                err.to_string()
+                err
             })?;
 
             match output.status.code() {
@@ -1300,10 +1261,10 @@ fn handle_archive<'a>(
             if let Some(d) = split {
                 let mut volume = String::from("-v");
 
-                let byte = Byte::from_str(d).map_err(|err| err.to_string())?;
+                let byte = Byte::from_str(d)?;
 
                 if byte.get_bytes() < 65536 {
-                    return Err(String::from("The split size is too small."));
+                    return Err("The split size is too small.".into());
                 } else {
                     volume.push_str(
                         format!(
@@ -1322,9 +1283,9 @@ fn handle_archive<'a>(
             command.args(input_paths);
 
             if quiet {
-                process::exit(command.execute().map_err(|err| err.to_string())?.unwrap_or(1));
+                process::exit(command.execute()?.unwrap_or(1));
             } else {
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -1336,10 +1297,10 @@ fn handle_archive<'a>(
             let password = read_password(password)?;
 
             let split = if let Some(d) = split {
-                let byte = Byte::from_str(d).map_err(|err| err.to_string())?;
+                let byte = Byte::from_str(d)?;
 
                 if byte.get_bytes() < 65536 {
-                    return Err(String::from("The split size is too small."));
+                    return Err("The split size is too small.".into());
                 }
 
                 Some(byte)
@@ -1358,10 +1319,10 @@ fn handle_archive<'a>(
                         return Err(format!(
                             "{} is a directory.",
                             output_tmp_path.to_string_lossy()
-                        ));
+                        )
+                        .into());
                     } else {
-                        fs::remove_file(output_tmp_path.as_path())
-                            .map_err(|err| err.to_string())?;
+                        fs::remove_file(output_tmp_path.as_path())?;
                     }
                 }
 
@@ -1386,9 +1347,9 @@ fn handle_archive<'a>(
             command.args(input_paths);
 
             let exit_code = if quiet {
-                command.execute().map_err(|err| err.to_string())?
+                command.execute()?
             } else {
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 output.status.code()
             };
@@ -1439,7 +1400,7 @@ fn handle_archive<'a>(
 
                 let output = command.execute_output().map_err(|err| {
                     try_delete_file(output_tmp_path.as_ref());
-                    err.to_string()
+                    err
                 })?;
 
                 match output.status.code() {
@@ -1478,10 +1439,10 @@ fn handle_archive<'a>(
             }
 
             if let Some(d) = split {
-                let byte = Byte::from_str(d).map_err(|err| err.to_string())?;
+                let byte = Byte::from_str(d)?;
 
                 if byte.get_bytes() < 65536 {
-                    return Err(String::from("The split size is too small."));
+                    return Err("The split size is too small.".into());
                 } else {
                     command.arg(format!(
                         "-v{}k",
@@ -1494,13 +1455,13 @@ fn handle_archive<'a>(
 
             command.args(input_paths);
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
         ArchiveFormat::Zstd => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err(String::from("Obviously, you should use .tar.zst for filename extension to support multiple files."));
+                return Err("Obviously, you should use .tar.zst for filename extension to support multiple files.".into());
             }
 
             let input_path = &input_paths[0];
@@ -1526,7 +1487,7 @@ fn handle_archive<'a>(
                         command.args(&["--ultra", "-22"]);
                     }
 
-                    let output = command.execute_output().map_err(|err| err.to_string())?;
+                    let output = command.execute_output()?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -1544,7 +1505,7 @@ fn handle_archive<'a>(
                 command.args(&["--ultra", "-22"]);
             }
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -1555,7 +1516,7 @@ fn handle_extract<'a>(
     matches: &'a ArgMatches<'a>,
     input_path: &Path,
     output_path: &Path,
-) -> Result<(), String> {
+) -> Result<(), Box<dyn Error>> {
     let single_thread = matches.is_present("SINGLE_THREAD");
     let quiet = matches.is_present("QUIET");
 
@@ -1565,19 +1526,18 @@ fn handle_extract<'a>(
         num_cpus::get()
     };
 
-    let format = ArchiveFormat::get_archive_format_from_file_path(input_path)
-        .map_err(|err| err.to_string())?;
+    let format = ArchiveFormat::get_archive_format_from_file_path(input_path)?;
 
-    let output_path = output_path.absolutize().map_err(|err| err.to_string())?;
+    let output_path = output_path.absolutize()?;
 
     match output_path.metadata() {
         Ok(metadata) => {
             if !metadata.is_dir() {
-                return Err(format!("{} is not a directory.", output_path.to_string_lossy()));
+                return Err(format!("{} is not a directory.", output_path.to_string_lossy()).into());
             }
         }
         Err(_) => {
-            fs::create_dir_all(output_path.as_ref()).map_err(|err| err.to_string())?;
+            fs::create_dir_all(output_path.as_ref())?;
         }
     }
 
@@ -1601,9 +1561,7 @@ fn handle_extract<'a>(
                         command2.arg("-v");
                     }
 
-                    let output = command1
-                        .execute_multiple_output(&mut [&mut command2])
-                        .map_err(|err| err.to_string())?;
+                    let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -1616,7 +1574,7 @@ fn handle_extract<'a>(
                 command.arg("-v");
             }
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -1636,9 +1594,7 @@ fn handle_extract<'a>(
                         command2.arg("-v");
                     }
 
-                    let output = command1
-                        .execute_multiple_output(&mut [&mut command2])
-                        .map_err(|err| err.to_string())?;
+                    let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -1660,9 +1616,7 @@ fn handle_extract<'a>(
                         command2.arg("-v");
                     }
 
-                    let output = command1
-                        .execute_multiple_output(&mut [&mut command2])
-                        .map_err(|err| err.to_string())?;
+                    let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -1675,7 +1629,7 @@ fn handle_extract<'a>(
                 command.arg("-v");
             }
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -1695,9 +1649,7 @@ fn handle_extract<'a>(
                         command2.arg("-v");
                     }
 
-                    let output = command1
-                        .execute_multiple_output(&mut [&mut command2])
-                        .map_err(|err| err.to_string())?;
+                    let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -1721,7 +1673,7 @@ fn handle_extract<'a>(
                     command.arg("-v");
                 }
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -1743,7 +1695,7 @@ fn handle_extract<'a>(
                 command.arg("-v");
             }
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -1763,9 +1715,7 @@ fn handle_extract<'a>(
                         command2.arg("-v");
                     }
 
-                    let output = command1
-                        .execute_multiple_output(&mut [&mut command2])
-                        .map_err(|err| err.to_string())?;
+                    let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -1778,7 +1728,7 @@ fn handle_extract<'a>(
                 command.arg("-v");
             }
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -1799,9 +1749,7 @@ fn handle_extract<'a>(
                         command2.arg("-v");
                     }
 
-                    let output = command1
-                        .execute_multiple_output(&mut [&mut command2])
-                        .map_err(|err| err.to_string())?;
+                    let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -1825,7 +1773,7 @@ fn handle_extract<'a>(
                     command.arg("-v");
                 }
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -1847,7 +1795,7 @@ fn handle_extract<'a>(
                 command.arg("-v");
             }
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -1870,9 +1818,7 @@ fn handle_extract<'a>(
                 command2.arg("-v");
             }
 
-            let output = command1
-                .execute_multiple_output(&mut [&mut command2])
-                .map_err(|err| err.to_string())?;
+            let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -1892,9 +1838,7 @@ fn handle_extract<'a>(
                         command2.arg("-v");
                     }
 
-                    let output = command1
-                        .execute_multiple_output(&mut [&mut command2])
-                        .map_err(|err| err.to_string())?;
+                    let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -1918,7 +1862,7 @@ fn handle_extract<'a>(
                     command.arg("-v");
                 }
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -1940,7 +1884,7 @@ fn handle_extract<'a>(
                 command.arg("-v");
             }
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -1954,7 +1898,7 @@ fn handle_extract<'a>(
                 command.arg("-v");
             }
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -1962,10 +1906,10 @@ fn handle_extract<'a>(
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
             if file_path.is_dir() {
-                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()));
+                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()).into());
             }
 
-            let file = File::create(file_path).map_err(|err| err.to_string())?;
+            let file = File::create(file_path)?;
 
             if cpus > 1 {
                 let pigz_path = matches.value_of("PIGZ_PATH").unwrap();
@@ -1976,7 +1920,7 @@ fn handle_extract<'a>(
 
                     command.stdout(file);
 
-                    let output = command.execute_output().map_err(|err| err.to_string())?;
+                    let output = command.execute_output()?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -1989,7 +1933,7 @@ fn handle_extract<'a>(
 
                 command.stdout(file);
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -2000,7 +1944,7 @@ fn handle_extract<'a>(
 
             command.stdout(file);
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -2008,10 +1952,10 @@ fn handle_extract<'a>(
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
             if file_path.is_dir() {
-                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()));
+                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()).into());
             }
 
-            let file = File::create(file_path).map_err(|err| err.to_string())?;
+            let file = File::create(file_path)?;
 
             if cpus > 1 {
                 let lbzip2_path = matches.value_of("LBZIP2_PATH").unwrap();
@@ -2022,7 +1966,7 @@ fn handle_extract<'a>(
 
                     command.stdout(file);
 
-                    let output = command.execute_output().map_err(|err| err.to_string())?;
+                    let output = command.execute_output()?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -2040,7 +1984,7 @@ fn handle_extract<'a>(
 
                     command.stdout(file);
 
-                    let output = command.execute_output().map_err(|err| err.to_string())?;
+                    let output = command.execute_output()?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -2053,7 +1997,7 @@ fn handle_extract<'a>(
 
                 command.stdout(file);
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -2064,7 +2008,7 @@ fn handle_extract<'a>(
 
             command.stdout(file);
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -2072,10 +2016,10 @@ fn handle_extract<'a>(
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
             if file_path.is_dir() {
-                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()));
+                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()).into());
             }
 
-            let file = File::create(file_path).map_err(|err| err.to_string())?;
+            let file = File::create(file_path)?;
 
             if cpus > 1 {
                 let plzip_path = matches.value_of("PLZIP_PATH").unwrap();
@@ -2086,7 +2030,7 @@ fn handle_extract<'a>(
 
                     command.stdout(file);
 
-                    let output = command.execute_output().map_err(|err| err.to_string())?;
+                    let output = command.execute_output()?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -2099,7 +2043,7 @@ fn handle_extract<'a>(
 
                 command.stdout(file);
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -2110,7 +2054,7 @@ fn handle_extract<'a>(
 
             command.stdout(file);
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -2118,10 +2062,10 @@ fn handle_extract<'a>(
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
             if file_path.is_dir() {
-                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()));
+                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()).into());
             }
 
-            let file = File::create(file_path).map_err(|err| err.to_string())?;
+            let file = File::create(file_path)?;
 
             if cpus > 1 {
                 let pxz_path = matches.value_of("PXZ_PATH").unwrap();
@@ -2132,7 +2076,7 @@ fn handle_extract<'a>(
 
                     command.stdout(file);
 
-                    let output = command.execute_output().map_err(|err| err.to_string())?;
+                    let output = command.execute_output()?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -2145,7 +2089,7 @@ fn handle_extract<'a>(
 
                 command.stdout(file);
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -2156,7 +2100,7 @@ fn handle_extract<'a>(
 
             command.stdout(file);
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -2164,10 +2108,10 @@ fn handle_extract<'a>(
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
             if file_path.is_dir() {
-                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()));
+                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()).into());
             }
 
-            let file = File::create(file_path).map_err(|err| err.to_string())?;
+            let file = File::create(file_path)?;
 
             if cpus > 1 {
                 let pxz_path = matches.value_of("PXZ_PATH").unwrap();
@@ -2179,7 +2123,7 @@ fn handle_extract<'a>(
 
                     command.stdout(file);
 
-                    let output = command.execute_output().map_err(|err| err.to_string())?;
+                    let output = command.execute_output()?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -2192,7 +2136,7 @@ fn handle_extract<'a>(
 
                 command.stdout(file);
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -2203,7 +2147,7 @@ fn handle_extract<'a>(
 
             command.stdout(file);
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -2228,9 +2172,9 @@ fn handle_extract<'a>(
             println!("{:?}", command);
 
             if quiet {
-                process::exit(command.execute().map_err(|err| err.to_string())?.unwrap_or(1));
+                process::exit(command.execute()?.unwrap_or(1));
             } else {
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -2255,7 +2199,7 @@ fn handle_extract<'a>(
             command.arg("-d");
             command.arg(output_path.as_ref());
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -2283,7 +2227,7 @@ fn handle_extract<'a>(
                 command.arg(input_path);
                 command.arg(output_path.as_ref());
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -2307,7 +2251,7 @@ fn handle_extract<'a>(
             command.arg(input_path);
             command.arg(output_path.as_ref());
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -2315,10 +2259,10 @@ fn handle_extract<'a>(
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
             if file_path.is_dir() {
-                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()));
+                return Err(format!("`{}` it is a directory.", file_path.to_string_lossy()).into());
             }
 
-            let file = File::create(file_path).map_err(|err| err.to_string())?;
+            let file = File::create(file_path)?;
 
             if cpus > 1 {
                 let pzstd_path = matches.value_of("PZSTD_PATH").unwrap();
@@ -2329,7 +2273,7 @@ fn handle_extract<'a>(
 
                     command.stdout(file);
 
-                    let output = command.execute_output().map_err(|err| err.to_string())?;
+                    let output = command.execute_output()?;
 
                     process::exit(output.status.code().unwrap_or(1));
                 }
@@ -2342,7 +2286,7 @@ fn handle_extract<'a>(
 
                 command.stdout(file);
 
-                let output = command.execute_output().map_err(|err| err.to_string())?;
+                let output = command.execute_output()?;
 
                 process::exit(output.status.code().unwrap_or(1));
             }
@@ -2353,7 +2297,7 @@ fn handle_extract<'a>(
 
             command.stdout(file);
 
-            let output = command.execute_output().map_err(|err| err.to_string())?;
+            let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
         }
@@ -2370,19 +2314,16 @@ fn create_cli_string(string: &str) -> String {
     string.replace(" ", "\\ ")
 }
 
-fn read_password(password: Option<&str>) -> Result<Cow<str>, String> {
+fn read_password(password: Option<&str>) -> Result<Cow<str>, Box<dyn Error>> {
     match password {
         Some(password) => {
             if password.is_empty() {
                 print!("Password (visible): ");
-                io::stdout().flush().map_err(|err| err.to_string())?;
+                io::stdout().flush()?;
 
                 let mut sc: Scanner<_, U32> = Scanner::new2(io::stdin());
 
-                sc.next_line()
-                    .map_err(|err| err.to_string())?
-                    .map(Cow::from)
-                    .ok_or_else(|| String::from("Stdin is closed."))
+                sc.next_line()?.map(Cow::from).ok_or_else(|| "Stdin is closed.".into())
             } else {
                 Ok(Cow::from(password))
             }
