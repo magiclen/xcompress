@@ -7,7 +7,7 @@ all: ./target/x86_64-unknown-linux-musl/release/xcompress
 install:
 	$(MAKE)
 	sudo cp ./target/x86_64-unknown-linux-musl/release/xcompress /usr/local/bin/xcompress
-	sudo chown root. /usr/local/bin/xcompress
+	sudo chown root: /usr/local/bin/xcompress
 	sudo chmod 0755 /usr/local/bin/xcompress
 
 uninstall:
