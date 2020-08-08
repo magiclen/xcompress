@@ -117,16 +117,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let output_path = sub_matches.value_of("OUTPUT_PATH");
 
-        let output_path =
-            match output_path {
-                Some(output_path) => Cow::from(Path::new(output_path)),
-                None => {
-                    Cow::from(CWD.join(format!(
-                        "{}.rar",
-                        input_paths[0].file_name().unwrap().to_string_lossy()
-                    )))
-                }
-            };
+        let output_path = match output_path {
+            Some(output_path) => Cow::from(Path::new(output_path)),
+            None => {
+                Cow::from(CWD.join(format!(
+                    "{}.rar",
+                    input_paths[0].absolutize()?.file_name().unwrap().to_string_lossy()
+                )))
+            }
+        };
 
         let best_compression = sub_matches.is_present("BEST_COMPRESSION");
 
