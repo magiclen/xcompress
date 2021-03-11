@@ -1,6 +1,6 @@
 [package]
 name = "xcompress"
-version = "0.11.4"
+version = "0.11.5"
 authors = ["Magic Len <len@magiclen.org>"]
 edition = "2018"
 repository = "https://github.com/magiclen/xcompress"

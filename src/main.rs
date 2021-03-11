@@ -133,7 +133,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         handle_archive(&matches, &input_paths, output_path, best_compression, split)
     } else {
-        unimplemented!()
+        Err("Please input a subcommand. Use `help` to see how to use this program.".into())
     }
 }
 
