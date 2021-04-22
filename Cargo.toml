@@ -1,6 +1,6 @@
 [package]
 name = "xcompress"
-version = "0.11.5"
+version = "0.11.6"
 authors = ["Magic Len <len@magiclen.org>"]
 edition = "2018"
 repository = "https://github.com/magiclen/xcompress"
@@ -11,10 +11,6 @@ description = "XCompress is a free file archiver utility on Linux, providing mul
 readme = "README.md"
 license = "MIT"
 include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
-
-[badges.travis-ci]
-repository = "magiclen/xcompress"
-branch = "master"
 
 [profile.release]
 lto = true
