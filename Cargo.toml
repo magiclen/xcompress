@@ -28,7 +28,7 @@ scanner-rust = "2.0.9"
 
 [dependencies.path-absolutize]
 version = "3"
-features = ["lazy_static_cache"]
+features = ["once_cell_cache"]
 
 [dependencies.byte-unit]
 version = "4"
