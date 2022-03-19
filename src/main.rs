@@ -1,18 +1,3 @@
-#[macro_use]
-extern crate concat_with;
-extern crate clap;
-extern crate terminal_size;
-
-extern crate xcompress;
-
-#[macro_use]
-extern crate execute;
-
-extern crate path_absolutize;
-
-extern crate byte_unit;
-extern crate scanner_rust;
-
 use std::borrow::Cow;
 use std::error::Error;
 use std::fs::{self, File};
@@ -22,10 +7,12 @@ use std::process;
 
 use xcompress::*;
 
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{Arg, ArgMatches, Command};
 use terminal_size::terminal_size;
 
-use execute::Execute;
+use concat_with::concat_line;
+
+use execute::{command_args, Execute};
 use path_absolutize::{Absolutize, CWD};
 
 use scanner_rust::generic_array::typenum::U32;
@@ -137,8 +124,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
-fn handle_archive<'a>(
-    matches: &'a ArgMatches<'a>,
+fn handle_archive(
+    matches: &ArgMatches,
     input_paths: &[&Path],
     output_path: Cow<Path>,
     best_compression: bool,
@@ -1511,8 +1498,8 @@ fn handle_archive<'a>(
     }
 }
 
-fn handle_extract<'a>(
-    matches: &'a ArgMatches<'a>,
+fn handle_extract(
+    matches: &ArgMatches,
     input_path: &Path,
     output_path: &Path,
 ) -> Result<(), Box<dyn Error>> {
@@ -2310,7 +2297,7 @@ fn try_delete_file<P: AsRef<Path>>(file_path: P) {
 
 #[inline]
 fn create_cli_string(string: &str) -> String {
-    string.replace(" ", "\\ ")
+    string.replace(' ', "\\ ")
 }
 
 fn read_password(password: Option<&str>) -> Result<Cow<str>, Box<dyn Error>> {
@@ -2331,261 +2318,261 @@ fn read_password(password: Option<&str>) -> Result<Cow<str>, Box<dyn Error>> {
     }
 }
 
-fn get_matches<'a>() -> ArgMatches<'a> {
-    App::new(APP_NAME)
-        .set_term_width(terminal_size().map(|(width, _)| width.0 as usize).unwrap_or(0))
+fn get_matches() -> ArgMatches {
+    Command::new(APP_NAME)
+        .term_width(terminal_size().map(|(width, _)| width.0 as usize).unwrap_or(0))
         .version(CARGO_PKG_VERSION)
         .author(CARGO_PKG_AUTHORS)
         .about(concat!("XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR and RAR.\n\nEXAMPLES:\n", concat_line!(prefix "xcompress ",
-                "a foo.wav                      # Archives foo.wav to foo.rar",
-                "a foo.wav /root/bar.txt        # Archives foo.wav and /root/bar.txt to foo.rar",
-                "a -o /tmp/out.7z foo.wav       # Archives foo.wav to /tmp/out.7z",
-                "a -b foo/bar                   # Archives foo/bar folder to bar.rar as small as possible",
-                "a -p password foo.wav          # Archives foo.wav to foo.rar with a password",
-                "x foo.rar                      # Extracts foo.rar into current working directory",
-                "x foo.tar.gz /tmp/out_folder   # Extracts foo.tar.gz into /tmp/out_folder",
-                "x -p password foo.rar          # Extracts foo.rar with a password into current working directory"
+                "a foo.wav                      # Archive foo.wav to foo.rar",
+                "a foo.wav /root/bar.txt        # Archive foo.wav and /root/bar.txt to foo.rar",
+                "a -o /tmp/out.7z foo.wav       # Archive foo.wav to /tmp/out.7z",
+                "a -b foo/bar                   # Archive foo/bar folder to bar.rar as small as possible",
+                "a -p password foo.wav          # Archive foo.wav to foo.rar with a password",
+                "x foo.rar                      # Extract foo.rar into current working directory",
+                "x foo.tar.gz /tmp/out_folder   # Extract foo.tar.gz into /tmp/out_folder",
+                "x -p password foo.rar          # Extract foo.rar with a password into current working directory"
             )))
-        .arg(Arg::with_name("QUIET")
+        .arg(Arg::new("QUIET")
             .global(true)
             .long("quiet")
-            .short("q")
-            .help("Makes programs not print anything on the screen.")
+            .short('q')
+            .help("Make programs not print anything on the screen.")
         )
-        .arg(Arg::with_name("SINGLE_THREAD")
+        .arg(Arg::new("SINGLE_THREAD")
             .global(true)
             .long("single-thread")
-            .short("s")
-            .help("Uses only one thread.")
+            .short('s')
+            .help("Use only one thread.")
         )
-        .arg(Arg::with_name("PASSWORD")
+        .arg(Arg::new("PASSWORD")
             .global(true)
             .long("password")
-            .short("p")
-            .help("Sets password for your archive file. (Only supports 7Z, ZIP and RAR.) Set an empty string to read a password from stdin.")
+            .short('p')
+            .help("Set password for your archive file. (Only supports 7Z, ZIP and RAR.) Set an empty string to read a password from stdin.")
             .takes_value(true)
-            .empty_values(true)
+            .forbid_empty_values(false)
             .display_order(0)
         )
-        .arg(Arg::with_name("COMPRESS_PATH")
+        .arg(Arg::new("COMPRESS_PATH")
             .global(true)
             .long("compress-path")
-            .help("Specifies the path of your compress executable binary file.")
+            .help("Specify the path of your compress executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_COMPRESS_PATH)
         )
-        .arg(Arg::with_name("ZIP_PATH")
+        .arg(Arg::new("ZIP_PATH")
             .global(true)
             .long("zip-path")
-            .help("Specifies the path of your zip executable binary file.")
+            .help("Specify the path of your zip executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_ZIP_PATH)
         )
-        .arg(Arg::with_name("UNZIP_PATH")
+        .arg(Arg::new("UNZIP_PATH")
             .global(true)
             .long("unzip-path")
-            .help("Specifies the path of your unzip executable binary file.")
+            .help("Specify the path of your unzip executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_UNZIP_PATH)
         )
-        .arg(Arg::with_name("GZIP_PATH")
+        .arg(Arg::new("GZIP_PATH")
             .global(true)
             .long("gzip-path")
-            .help("Specifies the path of your gzip executable binary file.")
+            .help("Specify the path of your gzip executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_GZIP_PATH)
         )
-        .arg(Arg::with_name("GUNZIP_PATH")
+        .arg(Arg::new("GUNZIP_PATH")
             .global(true)
             .long("gunzip-path")
-            .help("Specifies the path of your gunzip executable binary file.")
+            .help("Specify the path of your gunzip executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_GUNZIP_PATH)
         )
-        .arg(Arg::with_name("PIGZ_PATH")
+        .arg(Arg::new("PIGZ_PATH")
             .global(true)
             .long("pigz-path")
-            .help("Specifies the path of your pigz executable binary file.")
+            .help("Specify the path of your pigz executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_PIGZ_PATH)
         )
-        .arg(Arg::with_name("BZIP2_PATH")
+        .arg(Arg::new("BZIP2_PATH")
             .global(true)
             .long("bzip2-path")
-            .help("Specifies the path of your bzip2 executable binary file.")
+            .help("Specify the path of your bzip2 executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_BZIP2_PATH)
         )
-        .arg(Arg::with_name("BUNZIP2_PATH")
+        .arg(Arg::new("BUNZIP2_PATH")
             .global(true)
             .long("bunzip2-path")
-            .help("Specifies the path of your bunzip2 executable binary file.")
+            .help("Specify the path of your bunzip2 executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_BUNZIP2_PATH)
         )
-        .arg(Arg::with_name("LBZIP2_PATH")
+        .arg(Arg::new("LBZIP2_PATH")
             .global(true)
             .long("lbzip2-path")
-            .help("Specifies the path of your lbzip2 executable binary file.")
+            .help("Specify the path of your lbzip2 executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_LBZIP2_PATH)
         )
-        .arg(Arg::with_name("PBZIP2_PATH")
+        .arg(Arg::new("PBZIP2_PATH")
             .global(true)
             .long("pbzip2-path")
-            .help("Specifies the path of your pbzip2 executable binary file.")
+            .help("Specify the path of your pbzip2 executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_PBZIP2_PATH)
         )
-        .arg(Arg::with_name("LZIP_PATH")
+        .arg(Arg::new("LZIP_PATH")
             .global(true)
             .long("lzip-path")
-            .help("Specifies the path of your lzip executable binary file.")
+            .help("Specify the path of your lzip executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_LZIP_PATH)
         )
-        .arg(Arg::with_name("LUNZIP_PATH")
+        .arg(Arg::new("LUNZIP_PATH")
             .global(true)
             .long("lunzip-path")
-            .help("Specifies the path of your lunzip executable binary file.")
+            .help("Specify the path of your lunzip executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_LUNZIP_PATH)
         )
-        .arg(Arg::with_name("PLZIP_PATH")
+        .arg(Arg::new("PLZIP_PATH")
             .global(true)
             .long("plzip-path")
-            .help("Specifies the path of your plzip executable binary file.")
+            .help("Specify the path of your plzip executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_PLZIP_PATH)
         )
-        .arg(Arg::with_name("XZ_PATH")
+        .arg(Arg::new("XZ_PATH")
             .global(true)
             .long("xz-path")
-            .help("Specifies the path of your xz executable binary file.")
+            .help("Specify the path of your xz executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_XZ_PATH)
         )
-        .arg(Arg::with_name("UNXZ_PATH")
+        .arg(Arg::new("UNXZ_PATH")
             .global(true)
             .long("unxz-path")
-            .help("Specifies the path of your unxz executable binary file.")
+            .help("Specify the path of your unxz executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_UNXZ_PATH)
         )
-        .arg(Arg::with_name("PXZ_PATH")
+        .arg(Arg::new("PXZ_PATH")
             .global(true)
             .long("pxz-path")
-            .help("Specifies the path of your pxz executable binary file.")
+            .help("Specify the path of your pxz executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_PXZ_PATH)
         )
-        .arg(Arg::with_name("LZMA_PATH")
+        .arg(Arg::new("LZMA_PATH")
             .global(true)
             .long("lzma-path")
-            .help("Specifies the path of your lzma executable binary file.")
+            .help("Specify the path of your lzma executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_LZMA_PATH)
         )
-        .arg(Arg::with_name("UNLZMA_PATH")
+        .arg(Arg::new("UNLZMA_PATH")
             .global(true)
             .long("unlzma-path")
-            .help("Specifies the path of your unlzma executable binary file.")
+            .help("Specify the path of your unlzma executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_UNLZMA_PATH)
         )
-        .arg(Arg::with_name("7Z_PATH")
+        .arg(Arg::new("7Z_PATH")
             .global(true)
             .long("7z-path")
-            .help("Specifies the path of your 7z executable binary file.")
+            .help("Specify the path of your 7z executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_7Z_PATH)
         )
-        .arg(Arg::with_name("TAR_PATH")
+        .arg(Arg::new("TAR_PATH")
             .global(true)
             .long("tar-path")
-            .help("Specifies the path of your tar executable binary file.")
+            .help("Specify the path of your tar executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_TAR_PATH)
         )
-        .arg(Arg::with_name("RAR_PATH")
+        .arg(Arg::new("RAR_PATH")
             .global(true)
             .long("rar-path")
-            .help("Specifies the path of your rar executable binary file.")
+            .help("Specify the path of your rar executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_RAR_PATH)
         )
-        .arg(Arg::with_name("UNRAR_PATH")
+        .arg(Arg::new("UNRAR_PATH")
             .global(true)
             .long("unrar-path")
-            .help("Specifies the path of your unrar executable binary file.")
+            .help("Specify the path of your unrar executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_UNRAR_PATH)
         )
-        .arg(Arg::with_name("ZSTD_PATH")
+        .arg(Arg::new("ZSTD_PATH")
             .global(true)
             .long("zstd-path")
-            .help("Specifies the path of your zstd executable binary file.")
+            .help("Specify the path of your zstd executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_ZSTD_PATH)
         )
-        .arg(Arg::with_name("UNZSTD_PATH")
+        .arg(Arg::new("UNZSTD_PATH")
             .global(true)
             .long("unzstd-path")
-            .help("Specifies the path of your unzstd executable binary file.")
+            .help("Specify the path of your unzstd executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_UNZSTD_PATH)
         )
-        .arg(Arg::with_name("PZSTD_PATH")
+        .arg(Arg::new("PZSTD_PATH")
             .global(true)
             .long("pzstd-path")
-            .help("Specifies the path of your pzstd executable binary file.")
+            .help("Specify the path of your pzstd executable binary file.")
             .takes_value(true)
             .default_value(DEFAULT_PZSTD_PATH)
         )
-        .subcommand(SubCommand::with_name("x")
-            .about("Extracts files with full path.")
-            .arg(Arg::with_name("INPUT_PATH")
+        .subcommand(Command::new("x")
+            .about("Extract files with full path.")
+            .arg(Arg::new("INPUT_PATH")
                 .required(true)
-                .help("Assigns the source of your archived file. It should be a file path.")
+                .help("Assign the source of your archived file. It should be a file path.")
             )
-            .arg(Arg::with_name("OUTPUT_PATH")
+            .arg(Arg::new("OUTPUT_PATH")
                 .required(false)
-                .help("Assigns a destination of your extracted files. It should be a directory path.")
+                .help("Assign a destination of your extracted files. It should be a directory path.")
             )
-            .arg(Arg::with_name("OUTPUT_PATH2")
+            .arg(Arg::new("OUTPUT_PATH2")
                 .long("output")
-                .short("o")
-                .help("Assigns a destination of your extracted files. It should be a directory path.")
+                .short('o')
+                .help("Assign a destination of your extracted files. It should be a directory path.")
                 .takes_value(true)
                 .value_name("OUTPUT_PATH")
                 .display_order(1)
             )
             .after_help("Enjoy it! https://magiclen.org")
         )
-        .subcommand(SubCommand::with_name("a")
-            .about("Adds files to archive. Excludes base directory from names. (e.g. add /path/to/folder, you can always get the \"folder\" in the root of the archive file, instead of /path/to/folder.)")
-            .arg(Arg::with_name("INPUT_PATH")
+        .subcommand(Command::new("a")
+            .about("Add files to archive. Excludes base directory from names. (e.g. add /path/to/folder, you can always get the \"folder\" in the root of the archive file, instead of /path/to/folder.)")
+            .arg(Arg::new("INPUT_PATH")
                 .required(true)
-                .help("Assigns the source of your original files. It should be at least one file path.")
-                .multiple(true)
+                .help("Assign the source of your original files. It should be at least one file path.")
+                .multiple_values(true)
             )
-            .arg(Arg::with_name("OUTPUT_PATH")
+            .arg(Arg::new("OUTPUT_PATH")
                 .long("output")
-                .short("o")
-                .help("Assigns a destination of your extracted files. It should be a file path. Specifies the file extension name in order to determine which archive format you want to use. [default archive format: RAR]")
+                .short('o')
+                .help("Assign a destination of your extracted files. It should be a file path. Specify the file extension name in order to determine which archive format you want to use. [default archive format: RAR]")
                 .takes_value(true)
                 .display_order(1)
             )
-            .arg(Arg::with_name("BEST_COMPRESSION")
+            .arg(Arg::new("BEST_COMPRESSION")
                 .long("best-compression")
-                .short("b")
+                .short('b')
                 .help("If you are OK about the compression and depression time and want to save more disk space and network traffic, it will make the archive file as small as possible.")
                 .display_order(1)
             )
-            .arg(Arg::with_name("SPLIT")
+            .arg(Arg::new("SPLIT")
                 .long("split")
-                .short("d")
-                .help("Splits the archive file into volumes with a specified size. The unit of value is byte. You can also use KB, MB, KiB, MiB, etc, as a suffix. The minimum volume is 64 KiB. (Only supports 7Z, ZIP and RAR.)")
+                .short('d')
+                .help("Split the archive file into volumes with a specified size. The unit of value is byte. You can also use KB, MB, KiB, MiB, etc, as a suffix. The minimum volume is 64 KiB. (Only supports 7Z, ZIP and RAR.)")
                 .takes_value(true)
                 .value_name("SIZE_OF_EACH_VOLUME")
                 .display_order(1)

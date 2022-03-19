@@ -1,17 +1,19 @@
-all: ./target/x86_64-unknown-linux-musl/release/xcompress
+EXECUTABLE_NAME := xcompress
 
-./target/x86_64-unknown-linux-musl/release/xcompress: $(shell find . -type f -iname '*.rs' -o -name 'Cargo.toml' | sed 's/ /\\ /g')
+all: ./target/x86_64-unknown-linux-musl/release/$(EXECUTABLE_NAME)
+
+./target/x86_64-unknown-linux-musl/release/$(EXECUTABLE_NAME): $(shell find . -type f -iname '*.rs' -o -name 'Cargo.toml' | sed 's/ /\\ /g')
 	cargo build --release --target x86_64-unknown-linux-musl
-	strip ./target/x86_64-unknown-linux-musl/release/xcompress
+	strip ./target/x86_64-unknown-linux-musl/release/$(EXECUTABLE_NAME)
 	
 install:
 	$(MAKE)
-	sudo cp ./target/x86_64-unknown-linux-musl/release/xcompress /usr/local/bin/xcompress
-	sudo chown root: /usr/local/bin/xcompress
-	sudo chmod 0755 /usr/local/bin/xcompress
+	sudo cp ./target/x86_64-unknown-linux-musl/release/$(EXECUTABLE_NAME) /usr/local/bin/$(EXECUTABLE_NAME)
+	sudo chown root: /usr/local/bin/$(EXECUTABLE_NAME)
+	sudo chmod 0755 /usr/local/bin/$(EXECUTABLE_NAME)
 
 uninstall:
-	sudo rm /usr/local/bin/xcompress
+	sudo rm /usr/local/bin/$(EXECUTABLE_NAME)
 
 test:
 	cargo test --verbose
