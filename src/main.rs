@@ -501,7 +501,7 @@ fn handle_archive(
                             }
 
                             if best_compression {
-                                command2.args(&["-9", "-e"]);
+                                command2.args(["-9", "-e"]);
                             }
 
                             command2.stdout(File::create(output_path.as_ref())?);
@@ -538,7 +538,7 @@ fn handle_archive(
                     }
 
                     if best_compression {
-                        command2.args(&["-9", "-e"]);
+                        command2.args(["-9", "-e"]);
                     }
 
                     command2.stdout(File::create(output_path.as_ref())?);
@@ -577,7 +577,7 @@ fn handle_archive(
                             }
 
                             if best_compression {
-                                command2.args(&["-9", "-e"]);
+                                command2.args(["-9", "-e"]);
                             }
 
                             command2.stdout(File::create(output_path.as_ref())?);
@@ -614,7 +614,7 @@ fn handle_archive(
                     }
 
                     if best_compression {
-                        command2.args(&["-9", "-e"]);
+                        command2.args(["-9", "-e"]);
                     }
 
                     command2.stdout(File::create(output_path.as_ref())?);
@@ -655,7 +655,7 @@ fn handle_archive(
                     );
 
                     if best_compression {
-                        command2.args(&["-m0=lzma2", "-mx", "-ms=on"]);
+                        command2.args(["-m0=lzma2", "-mx", "-ms=on"]);
                     }
 
                     if !password.is_empty() {
@@ -708,7 +708,7 @@ fn handle_archive(
                             }
 
                             if best_compression {
-                                command2.args(&["--ultra", "-22"]);
+                                command2.args(["--ultra", "-22"]);
                             }
 
                             let output = command1.execute_multiple_output(&mut [&mut command2])?;
@@ -726,7 +726,7 @@ fn handle_archive(
                     }
 
                     if best_compression {
-                        command2.args(&["--ultra", "-22"]);
+                        command2.args(["--ultra", "-22"]);
                     }
 
                     let output = command1.execute_multiple_output(&mut [&mut command2])?;
@@ -1088,7 +1088,7 @@ fn handle_archive(
                     }
 
                     if best_compression {
-                        command.args(&["-9", "-e"]);
+                        command.args(["-9", "-e"]);
                     }
 
                     command.stdout(File::create(output_path.as_ref())?);
@@ -1123,7 +1123,7 @@ fn handle_archive(
             }
 
             if best_compression {
-                command.args(&["-9", "-e"]);
+                command.args(["-9", "-e"]);
             }
 
             command.stdout(File::create(output_path.as_ref())?);
@@ -1167,7 +1167,7 @@ fn handle_archive(
                     }
 
                     if best_compression {
-                        command.args(&["-9", "-e"]);
+                        command.args(["-9", "-e"]);
                     }
 
                     command.stdout(File::create(output_path.as_ref())?);
@@ -1202,7 +1202,7 @@ fn handle_archive(
             }
 
             if best_compression {
-                command.args(&["-9", "-e"]);
+                command.args(["-9", "-e"]);
             }
 
             command.stdout(File::create(output_path.as_ref())?);
@@ -1236,7 +1236,7 @@ fn handle_archive(
                 command_args!(p7z_path, "a", "-t7z", "-aoa", format!("-mmt{}", threads));
 
             if best_compression {
-                command.args(&["-m0=lzma2", "-mx", "-ms=on"]);
+                command.args(["-m0=lzma2", "-mx", "-ms=on"]);
             }
 
             if !password.is_empty() {
@@ -1413,7 +1413,7 @@ fn handle_archive(
             let mut command = command_args!(rar_path, "a", "-ep1", format!("-mt{}", threads));
 
             if best_compression {
-                command.args(&["-ma5", "-m5", "-s"]);
+                command.args(["-ma5", "-m5", "-s"]);
             }
 
             if !password.is_empty() {
@@ -1470,7 +1470,7 @@ fn handle_archive(
                     }
 
                     if best_compression {
-                        command.args(&["--ultra", "-22"]);
+                        command.args(["--ultra", "-22"]);
                     }
 
                     let output = command.execute_output()?;
@@ -1488,7 +1488,7 @@ fn handle_archive(
             }
 
             if best_compression {
-                command.args(&["--ultra", "-22"]);
+                command.args(["--ultra", "-22"]);
             }
 
             let output = command.execute_output()?;
@@ -2180,7 +2180,7 @@ fn handle_extract(
                 command.arg("-qq");
             }
 
-            command.args(&["-O", "UTF-8", "-o"]);
+            command.args(["-O", "UTF-8", "-o"]);
             command.arg(input_path);
             command.arg("-d");
             command.arg(output_path.as_ref());
