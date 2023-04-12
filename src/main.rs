@@ -1,24 +1,20 @@
-use std::borrow::Cow;
-use std::error::Error;
-use std::fs::{self, File};
-use std::io::{self, Write};
-use std::path::Path;
-use std::process;
-
-use xcompress::*;
-
-use clap::{Arg, ArgMatches, Command};
-use terminal_size::terminal_size;
-
-use concat_with::concat_line;
-
-use execute::{command_args, Execute};
-use path_absolutize::{Absolutize, CWD};
-
-use scanner_rust::generic_array::typenum::U32;
-use scanner_rust::Scanner;
+use std::{
+    borrow::Cow,
+    error::Error,
+    fs::{self, File},
+    io::{self, Write},
+    path::Path,
+    process,
+};
 
 use byte_unit::{Byte, ByteUnit};
+use clap::{Arg, ArgMatches, Command};
+use concat_with::concat_line;
+use execute::{command_args, Execute};
+use path_absolutize::{Absolutize, CWD};
+use scanner_rust::{generic_array::typenum::U32, Scanner};
+use terminal_size::terminal_size;
+use xcompress::*;
 
 const APP_NAME: &str = "XCompress";
 const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -106,12 +102,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let output_path = match output_path {
             Some(output_path) => Cow::from(Path::new(output_path)),
-            None => {
-                Cow::from(CWD.join(format!(
-                    "{}.rar",
-                    input_paths[0].absolutize()?.file_name().unwrap().to_string_lossy()
-                )))
-            }
+            None => Cow::from(CWD.join(format!(
+                "{}.rar",
+                input_paths[0].absolutize()?.file_name().unwrap().to_string_lossy()
+            ))),
         };
 
         let best_compression = sub_matches.is_present("BEST_COMPRESSION");
@@ -134,11 +128,7 @@ fn handle_archive(
     let single_thread = matches.is_present("SINGLE_THREAD");
     let quiet = matches.is_present("QUIET");
 
-    let cpus = if single_thread {
-        1
-    } else {
-        num_cpus::get()
-    };
+    let cpus = if single_thread { 1 } else { num_cpus::get() };
 
     let format = ArchiveFormat::get_archive_format_from_file_path(output_path.as_ref())?;
 
@@ -151,12 +141,12 @@ fn handle_archive(
             }
 
             fs::remove_file(output_path.as_ref())?;
-        }
+        },
         Err(_) => {
             let output_path_parent = output_path.parent().unwrap();
 
             fs::create_dir_all(output_path_parent)?;
-        }
+        },
     }
 
     let threads = cpus.to_string();
@@ -206,13 +196,13 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
-                }
+                },
                 ArchiveFormat::TarGzip => {
                     if cpus > 1 || best_compression {
                         let pigz_path = matches.value_of("PIGZ_PATH").unwrap();
@@ -245,11 +235,11 @@ fn handle_archive(
                                     }
 
                                     process::exit(code);
-                                }
+                                },
                                 None => {
                                     try_delete_file(output_path.as_ref());
                                     process::exit(1);
-                                }
+                                },
                             }
                         }
                     }
@@ -281,13 +271,13 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
-                }
+                },
                 ArchiveFormat::TarBzip2 => {
                     if cpus > 1 {
                         let lbzip2_path = matches.value_of("LBZIP2_PATH").unwrap();
@@ -323,11 +313,11 @@ fn handle_archive(
                                     }
 
                                     process::exit(code);
-                                }
+                                },
                                 None => {
                                     try_delete_file(output_path.as_ref());
                                     process::exit(1);
-                                }
+                                },
                             }
                         }
 
@@ -369,11 +359,11 @@ fn handle_archive(
                                     }
 
                                     process::exit(code);
-                                }
+                                },
                                 None => {
                                     try_delete_file(output_path.as_ref());
                                     process::exit(1);
-                                }
+                                },
                             }
                         }
                     }
@@ -405,13 +395,13 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
-                }
+                },
                 ArchiveFormat::TarLz => {
                     if cpus > 1 {
                         let plzip_path = matches.value_of("PLZIP_PATH").unwrap();
@@ -445,11 +435,11 @@ fn handle_archive(
                                     }
 
                                     process::exit(code);
-                                }
+                                },
                                 None => {
                                     try_delete_file(output_path.as_ref());
                                     process::exit(1);
-                                }
+                                },
                             }
                         }
                     }
@@ -481,13 +471,13 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
-                }
+                },
                 ArchiveFormat::TarXz => {
                     if cpus > 1 {
                         let pxz_path = matches.value_of("PXZ_PATH").unwrap();
@@ -520,11 +510,11 @@ fn handle_archive(
                                     }
 
                                     process::exit(code);
-                                }
+                                },
                                 None => {
                                     try_delete_file(output_path.as_ref());
                                     process::exit(1);
-                                }
+                                },
                             }
                         }
                     }
@@ -556,13 +546,13 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
-                }
+                },
                 ArchiveFormat::TarLzma => {
                     if cpus > 1 {
                         let pxz_path = matches.value_of("PXZ_PATH").unwrap();
@@ -596,11 +586,11 @@ fn handle_archive(
                                     }
 
                                     process::exit(code);
-                                }
+                                },
                                 None => {
                                     try_delete_file(output_path.as_ref());
                                     process::exit(1);
-                                }
+                                },
                             }
                         }
                     }
@@ -632,13 +622,13 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
-                }
+                },
                 ArchiveFormat::Tar7z => {
                     let p7z_path = matches.value_of("7Z_PATH").unwrap();
 
@@ -687,7 +677,7 @@ fn handle_archive(
 
                         process::exit(output.status.code().unwrap_or(1));
                     }
-                }
+                },
                 ArchiveFormat::TarZstd => {
                     if cpus > 1 {
                         let pzstd_path = matches.value_of("PZSTD_PATH").unwrap();
@@ -732,10 +722,10 @@ fn handle_archive(
                     let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
                     process::exit(output.status.code().unwrap_or(1));
-                }
+                },
                 _ => unreachable!(),
             }
-        }
+        },
         ArchiveFormat::Tar => {
             let tar_path = matches.value_of("TAR_PATH").unwrap();
 
@@ -762,10 +752,12 @@ fn handle_archive(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Z => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err("Obviously, you should use .tar.Z for filename extension to support multiple files.".into());
+                return Err("Obviously, you should use .tar.Z for filename extension to support \
+                            multiple files."
+                    .into());
             }
 
             let input_path = &input_paths[0];
@@ -788,16 +780,18 @@ fn handle_archive(
                     }
 
                     process::exit(code);
-                }
+                },
                 None => {
                     try_delete_file(output_path.as_ref());
                     process::exit(1);
-                }
+                },
             }
-        }
+        },
         ArchiveFormat::Gzip => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err("Obviously, you should use .tar.gz for filename extension to support multiple files.".into());
+                return Err("Obviously, you should use .tar.gz for filename extension to support \
+                            multiple files."
+                    .into());
             }
 
             let input_path = &input_paths[0];
@@ -830,11 +824,11 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
                 }
             }
@@ -865,16 +859,18 @@ fn handle_archive(
                     }
 
                     process::exit(code);
-                }
+                },
                 None => {
                     try_delete_file(output_path.as_ref());
                     process::exit(1);
-                }
+                },
             }
-        }
+        },
         ArchiveFormat::Bzip2 => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err("Obviously, you should use .tar.bz2 for filename extension to support multiple files.".into());
+                return Err("Obviously, you should use .tar.bz2 for filename extension to \
+                            support multiple files."
+                    .into());
             }
 
             let input_path = &input_paths[0];
@@ -908,11 +904,11 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
                 }
 
@@ -949,11 +945,11 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
                 }
             }
@@ -984,16 +980,18 @@ fn handle_archive(
                     }
 
                     process::exit(code);
-                }
+                },
                 None => {
                     try_delete_file(output_path.as_ref());
                     process::exit(1);
-                }
+                },
             }
-        }
+        },
         ArchiveFormat::Lz => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err("Obviously, you should use .tar.lz for filename extension to support multiple files.".into());
+                return Err("Obviously, you should use .tar.lz for filename extension to support \
+                            multiple files."
+                    .into());
             }
 
             let input_path = &input_paths[0];
@@ -1027,11 +1025,11 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
                 }
             }
@@ -1062,16 +1060,18 @@ fn handle_archive(
                     }
 
                     process::exit(code);
-                }
+                },
                 None => {
                     try_delete_file(output_path.as_ref());
                     process::exit(1);
-                }
+                },
             }
-        }
+        },
         ArchiveFormat::Xz => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err("Obviously, you should use .tar.xz for filename extension to support multiple files.".into());
+                return Err("Obviously, you should use .tar.xz for filename extension to support \
+                            multiple files."
+                    .into());
             }
 
             let input_path = &input_paths[0];
@@ -1105,11 +1105,11 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
                 }
             }
@@ -1140,16 +1140,18 @@ fn handle_archive(
                     }
 
                     process::exit(code);
-                }
+                },
                 None => {
                     try_delete_file(output_path.as_ref());
                     process::exit(1);
-                }
+                },
             }
-        }
+        },
         ArchiveFormat::Lzma => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err("Obviously, you should use .tar.lzma for filename extension to support multiple files.".into());
+                return Err("Obviously, you should use .tar.lzma for filename extension to \
+                            support multiple files."
+                    .into());
             }
 
             let input_path = &input_paths[0];
@@ -1184,11 +1186,11 @@ fn handle_archive(
                             }
 
                             process::exit(code);
-                        }
+                        },
                         None => {
                             try_delete_file(output_path.as_ref());
                             process::exit(1);
-                        }
+                        },
                     }
                 }
             }
@@ -1219,13 +1221,13 @@ fn handle_archive(
                     }
 
                     process::exit(code);
-                }
+                },
                 None => {
                     try_delete_file(output_path.as_ref());
                     process::exit(1);
-                }
+                },
             }
-        }
+        },
         ArchiveFormat::P7z => {
             let p7z_path = matches.value_of("7Z_PATH").unwrap();
 
@@ -1275,7 +1277,7 @@ fn handle_archive(
 
                 process::exit(output.status.code().unwrap_or(1));
             }
-        }
+        },
         ArchiveFormat::Zip => {
             let p7z_path = matches.value_of("7Z_PATH").unwrap();
 
@@ -1347,11 +1349,11 @@ fn handle_archive(
                             try_delete_file(output_path.as_ref());
                             process::exit(code);
                         }
-                    }
+                    },
                     None => {
                         try_delete_file(output_path.as_ref());
                         process::exit(1);
-                    }
+                    },
                 }
 
                 let zip_path = matches.value_of("ZIP_PATH").unwrap();
@@ -1393,17 +1395,17 @@ fn handle_archive(
                     Some(code) => {
                         try_delete_file(output_tmp_path.as_ref());
                         process::exit(code);
-                    }
+                    },
                     None => {
                         try_delete_file(output_tmp_path.as_ref());
                         try_delete_file(output_path.as_ref());
                         process::exit(1);
-                    }
+                    },
                 }
             }
 
             process::exit(exit_code.unwrap_or(1));
-        }
+        },
         ArchiveFormat::Rar => {
             let rar_path = matches.value_of("RAR_PATH").unwrap();
 
@@ -1444,10 +1446,12 @@ fn handle_archive(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Zstd => {
             if input_paths.len() > 1 || input_paths[0].is_dir() {
-                return Err("Obviously, you should use .tar.zst for filename extension to support multiple files.".into());
+                return Err("Obviously, you should use .tar.zst for filename extension to \
+                            support multiple files."
+                    .into());
             }
 
             let input_path = &input_paths[0];
@@ -1494,7 +1498,7 @@ fn handle_archive(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
     }
 }
 
@@ -1506,11 +1510,7 @@ fn handle_extract(
     let single_thread = matches.is_present("SINGLE_THREAD");
     let quiet = matches.is_present("QUIET");
 
-    let cpus = if single_thread {
-        1
-    } else {
-        num_cpus::get()
-    };
+    let cpus = if single_thread { 1 } else { num_cpus::get() };
 
     let format = ArchiveFormat::get_archive_format_from_file_path(input_path)?;
 
@@ -1521,10 +1521,10 @@ fn handle_extract(
             if !metadata.is_dir() {
                 return Err(format!("{} is not a directory.", output_path.to_string_lossy()).into());
             }
-        }
+        },
         Err(_) => {
             fs::create_dir_all(output_path.as_ref())?;
-        }
+        },
     }
 
     let threads = cpus.to_string();
@@ -1563,7 +1563,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::TarBzip2 => {
             let tar_path = matches.value_of("TAR_PATH").unwrap();
 
@@ -1618,7 +1618,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::TarLz => {
             let tar_path = matches.value_of("TAR_PATH").unwrap();
 
@@ -1684,7 +1684,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::TarXz => {
             let tar_path = matches.value_of("TAR_PATH").unwrap();
 
@@ -1717,7 +1717,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::TarLzma => {
             let tar_path = matches.value_of("TAR_PATH").unwrap();
 
@@ -1784,7 +1784,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Tar7z => {
             let p7z_path = matches.value_of("7Z_PATH").unwrap();
             let tar_path = matches.value_of("TAR_PATH").unwrap();
@@ -1807,7 +1807,7 @@ fn handle_extract(
             let output = command1.execute_multiple_output(&mut [&mut command2])?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::TarZstd => {
             let tar_path = matches.value_of("TAR_PATH").unwrap();
 
@@ -1873,7 +1873,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Tar => {
             let tar_path = matches.value_of("TAR_PATH").unwrap();
 
@@ -1887,7 +1887,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Z | ArchiveFormat::Gzip => {
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
@@ -1933,7 +1933,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Bzip2 => {
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
@@ -1997,7 +1997,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Lz => {
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
@@ -2043,7 +2043,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Xz => {
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
@@ -2089,7 +2089,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Lzma => {
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
@@ -2136,7 +2136,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::P7z => {
             let p7z_path = matches.value_of("7Z_PATH").unwrap();
 
@@ -2164,7 +2164,7 @@ fn handle_extract(
 
                 process::exit(output.status.code().unwrap_or(1));
             }
-        }
+        },
         ArchiveFormat::Zip => {
             let unzip_path = matches.value_of("UNZIP_PATH").unwrap();
 
@@ -2188,7 +2188,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Rar => {
             let unrar_path = matches.value_of("UNRAR_PATH").unwrap();
 
@@ -2240,7 +2240,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
         ArchiveFormat::Zstd => {
             let file_path = output_path.join(Path::new(input_path).file_stem().unwrap());
 
@@ -2286,7 +2286,7 @@ fn handle_extract(
             let output = command.execute_output()?;
 
             process::exit(output.status.code().unwrap_or(1));
-        }
+        },
     }
 }
 
@@ -2313,7 +2313,7 @@ fn read_password(password: Option<&str>) -> Result<Cow<str>, Box<dyn Error>> {
             } else {
                 Ok(Cow::from(password))
             }
-        }
+        },
         None => Ok(Cow::from("")),
     }
 }
