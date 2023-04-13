@@ -32,7 +32,7 @@ jobs:
         os:
           - ubuntu-latest
         toolchain:
-          - 1.60
+          - "1.60"
           - stable
           - nightly
         target:
@@ -58,7 +58,7 @@ jobs:
         os:
           - macos-latest
         toolchain:
-          - 1.60
+          - "1.60"
           - stable
           - nightly
         features:
