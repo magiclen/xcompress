@@ -16,7 +16,6 @@ jobs:
         os:
           - ubuntu-latest
         toolchain:
-          - "1.60"
           - stable
           - nightly
         target:
@@ -27,7 +26,7 @@ jobs:
     name: Test ${{ matrix.toolchain }} on ${{ matrix.os }} to ${{ matrix.target }} (${{ matrix.features }})
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: ${{ matrix.toolchain }}
@@ -42,7 +41,6 @@ jobs:
         os:
           - macos-latest
         toolchain:
-          - "1.60"
           - stable
           - nightly
         features:
@@ -50,9 +48,51 @@ jobs:
     name: Test ${{ matrix.toolchain }} on ${{ matrix.os }} (${{ matrix.features }})
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: ${{ matrix.toolchain }}
       - run: cargo test --release ${{ matrix.features }}
       - run: cargo doc --release ${{ matrix.features }}
+
+  MSRV-1:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+        toolchain:
+          - "1.60"
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+        features:
+          -
+    name: Test ${{ matrix.toolchain }} on ${{ matrix.os }} to ${{ matrix.target }} (${{ matrix.features }})
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          target: ${{ matrix.target }}
+      - run: cargo test --release --lib --bins --target ${{ matrix.target }} ${{ matrix.features }}
+
+  MSRV-2:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+        toolchain:
+          - "1.60"
+        features:
+          -
+    name: Test ${{ matrix.toolchain }} on ${{ matrix.os }} (${{ matrix.features }})
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - run: cargo test --release --lib --bins ${{ matrix.features }}
