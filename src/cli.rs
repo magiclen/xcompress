@@ -258,6 +258,7 @@ pub enum CLICommands {
                        archive file, instead of /path/to/folder)")]
     #[command(after_help = AFTER_HELP)]
     A {
+        #[arg(required = true)]
         #[arg(
             help = "Assign the source of your original files. It should be at least one file path"
         )]
