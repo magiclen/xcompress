@@ -18,45 +18,44 @@ xcompress x foo.rar                      # Extract foo.rar into current working 
 xcompress x foo.tar.gz /tmp/out_folder   # Extract foo.tar.gz into /tmp/out_folder
 xcompress x -p password foo.rar          # Extract foo.rar with a password into current working directory
 
-USAGE:
-    xcompress [OPTIONS] [SUBCOMMAND]
+Usage: xcompress [OPTIONS] <COMMAND>
 
-OPTIONS:
-    -p, --password <PASSWORD>              Set password for your archive file. (Only supports 7Z, ZIP and RAR.) Set an empty string to read a password from stdin.
-        --7z-path <7Z_PATH>                Specify the path of your 7z executable binary file. [default: 7z]
-        --bunzip2-path <BUNZIP2_PATH>      Specify the path of your bunzip2 executable binary file. [default: bunzip2]
-        --bzip2-path <BZIP2_PATH>          Specify the path of your bzip2 executable binary file. [default: bzip2]
-        --compress-path <COMPRESS_PATH>    Specify the path of your compress executable binary file. [default: compress]
-        --gunzip-path <GUNZIP_PATH>        Specify the path of your gunzip executable binary file. [default: gunzip]
-        --gzip-path <GZIP_PATH>            Specify the path of your gzip executable binary file. [default: gzip]
-    -h, --help                             Print help information
-        --lbzip2-path <LBZIP2_PATH>        Specify the path of your lbzip2 executable binary file. [default: lbzip2]
-        --lunzip-path <LUNZIP_PATH>        Specify the path of your lunzip executable binary file. [default: lunzip]
-        --lzip-path <LZIP_PATH>            Specify the path of your lzip executable binary file. [default: lzip]
-        --lzma-path <LZMA_PATH>            Specify the path of your lzma executable binary file. [default: lzma]
-        --pbzip2-path <PBZIP2_PATH>        Specify the path of your pbzip2 executable binary file. [default: pbzip2]
-        --pigz-path <PIGZ_PATH>            Specify the path of your pigz executable binary file. [default: pigz]
-        --plzip-path <PLZIP_PATH>          Specify the path of your plzip executable binary file. [default: plzip]
-        --pxz-path <PXZ_PATH>              Specify the path of your pxz executable binary file. [default: pxz]
-        --pzstd-path <PZSTD_PATH>          Specify the path of your pzstd executable binary file. [default: pzstd]
-    -q, --quiet                            Make programs not print anything on the screen.
-        --rar-path <RAR_PATH>              Specify the path of your rar executable binary file. [default: rar]
-    -s, --single-thread                    Use only one thread.
-        --tar-path <TAR_PATH>              Specify the path of your tar executable binary file. [default: tar]
-        --unlzma-path <UNLZMA_PATH>        Specify the path of your unlzma executable binary file. [default: unlzma]
-        --unrar-path <UNRAR_PATH>          Specify the path of your unrar executable binary file. [default: unrar]
-        --unxz-path <UNXZ_PATH>            Specify the path of your unxz executable binary file. [default: unxz]
-        --unzip-path <UNZIP_PATH>          Specify the path of your unzip executable binary file. [default: unzip]
-        --unzstd-path <UNZSTD_PATH>        Specify the path of your unzstd executable binary file. [default: unzstd]
-    -V, --version                          Print version information
-        --xz-path <XZ_PATH>                Specify the path of your xz executable binary file. [default: xz]
-        --zip-path <ZIP_PATH>              Specify the path of your zip executable binary file. [default: zip]
-        --zstd-path <ZSTD_PATH>            Specify the path of your zstd executable binary file. [default: zstd]
+Commands:
+  x     Extract files with full path
+  a     Add files to archive. Excludes base directory from names (e.g. add /path/to/folder, you can always get the "folder" in the root of the archive file, instead of /path/to/folder)
+  help  Print this message or the help of the given subcommand(s)
 
-SUBCOMMANDS:
-    a       Add files to archive. Excludes base directory from names. (e.g. add /path/to/folder, you can always get the "folder" in the root of the archive file, instead of /path/to/folder.)
-    help    Print this message or the help of the given subcommand(s)
-    x       Extract files with full path.
+Options:
+  -q, --quiet                          Make programs not print anything on the screen
+  -s, --single-thread                  Use only one thread
+  -p, --password <PASSWORD>            Set password for your archive file. (Only supports 7Z, ZIP and RAR) Set an empty string to read a password from stdin
+      --compress-path <COMPRESS_PATH>  Specify the path of your compress executable binary file [default: compress]
+      --zip-path <ZIP_PATH>            Specify the path of your zip executable binary file [default: zip]
+      --unzip-path <UNZIP_PATH>        Specify the path of your unzip executable binary file [default: unzip]
+      --gzip-path <GZIP_PATH>          Specify the path of your gzip executable binary file [default: gzip]
+      --gnuzip-path <GNUZIP_PATH>      Specify the path of your gunzip executable binary file [default: gunzip]
+      --pigz-path <PIGZ_PATH>          Specify the path of your pigz executable binary file [default: pigz]
+      --bzip2-path <BZIP2_PATH>        Specify the path of your bzip2 executable binary file [default: bzip2]
+      --bunzip2-path <BUNZIP2_PATH>    Specify the path of your bunzip2 executable binary file [default: bunzip2]
+      --lbzip2-path <LBZIP2_PATH>      Specify the path of your lbzip2 executable binary file [default: lbzip2]
+      --pbzip2-path <PBZIP2_PATH>      Specify the path of your pbzip2 executable binary file [default: pbzip2]
+      --lzip-path <LZIP_PATH>          Specify the path of your lzip executable binary file [default: lzip]
+      --lunzip-path <LUNZIP_PATH>      Specify the path of your lunzip executable binary file [default: lunzip]
+      --plzip-path <PLZIP_PATH>        Specify the path of your plzip executable binary file [default: plzip]
+      --xz-path <XZ_PATH>              Specify the path of your xz executable binary file [default: xz]
+      --unxz-path <UNXZ_PATH>          Specify the path of your unxz executable binary file [default: unxz]
+      --pxz-path <PXZ_PATH>            Specify the path of your pxz executable binary file [default: pxz]
+      --lzma-path <LZMA_PATH>          Specify the path of your lzma executable binary file [default: lzma]
+      --unlzma-path <UNLZMA_PATH>      Specify the path of your unlzma executable binary file [default: unlzma]
+      --7Z_PATH <P7Z_PATH>             Specify the path of your 7z executable binary file [default: 7z]
+      --tar-path <TAR_PATH>            Specify the path of your tar executable binary file [default: tar]
+      --rar-path <RAR_PATH>            Specify the path of your rar executable binary file [default: rar]
+      --unrar-path <UNRAR_PATH>        Specify the path of your unrar executable binary file [default: unrar]
+      --zstd-path <ZSTD_PATH>          Specify the path of your zstd executable binary file [default: zstd]
+      --unzstd-path <UNZSTD_PATH>      Specify the path of your unzstd executable binary file [default: unzstd]
+      --pzstd-path <PZSTD_PATH>        Specify the path of your pzstd executable binary file [default: pzstd]
+  -h, --help                           Print help
+  -V, --version                        Print version
 ```
 
 ## License
