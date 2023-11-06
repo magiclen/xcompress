@@ -101,7 +101,7 @@ jobs:
         os:
           - macos-latest
         toolchain:
-          - "1.60"
+          - "1.70"
         features:
           -
     name: Test ${{ matrix.toolchain }} on ${{ matrix.os }} (${{ matrix.features }})
