@@ -28,6 +28,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
         fastest_compression,
         split,
         recovery_record,
+        ..
     } = cli_args.command
     {
         for input_path in input_paths.iter_mut() {
