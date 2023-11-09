@@ -88,150 +88,176 @@ pub struct ExecutablePaths {
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_COMPRESS_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your compress executable binary file")]
     pub compress_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_ZIP_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your zip executable binary file")]
     pub zip_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_UNZIP_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your unzip executable binary file")]
     pub unzip_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_GZIP_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your gzip executable binary file")]
     pub gzip_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_GUNZIP_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your gunzip executable binary file")]
     pub gnuzip_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_PIGZ_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your pigz executable binary file")]
     pub pigz_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_BZIP2_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your bzip2 executable binary file")]
     pub bzip2_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_BUNZIP2_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your bunzip2 executable binary file")]
     pub bunzip2_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_LBZIP2_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your lbzip2 executable binary file")]
     pub lbzip2_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_PBZIP2_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your pbzip2 executable binary file")]
     pub pbzip2_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_LZIP_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your lzip executable binary file")]
     pub lzip_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_LUNZIP_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your lunzip executable binary file")]
     pub lunzip_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_PLZIP_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your plzip executable binary file")]
     pub plzip_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_XZ_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your xz executable binary file")]
     pub xz_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_UNXZ_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your unxz executable binary file")]
     pub unxz_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_PXZ_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your pxz executable binary file")]
     pub pxz_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_LZMA_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your lzma executable binary file")]
     pub lzma_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_UNLZMA_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your unlzma executable binary file")]
     pub unlzma_path: String,
 
-    #[arg(long = "7Z_PATH")]
+    #[arg(name = "7z-path")]
+    #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_7Z_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your 7z executable binary file")]
     pub p7z_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_TAR_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your tar executable binary file")]
     pub tar_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_RAR_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your rar executable binary file")]
     pub rar_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_UNRAR_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your unrar executable binary file")]
     pub unrar_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_ZSTD_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your zstd executable binary file")]
     pub zstd_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_UNZSTD_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your unzstd executable binary file")]
     pub unzstd_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_PZSTD_PATH)]
+    #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your pzstd executable binary file")]
     pub pzstd_path: String,
 }
@@ -241,14 +267,17 @@ pub enum CLICommands {
     #[command(about = "Extract files with full path")]
     #[command(after_help = AFTER_HELP)]
     X {
+        #[arg(value_hint = clap::ValueHint::FilePath)]
         #[arg(
             help = "Assign the source of your original files. It should be at least one file path"
         )]
         input_path:  PathBuf,
-        #[arg(help = "Assign a destination of your extracted files. It should be a directory path")]
+        #[arg(value_hint = clap::ValueHint::DirPath)]
         #[arg(conflicts_with = "output")]
+        #[arg(help = "Assign a destination of your extracted files. It should be a directory path")]
         output_path: Option<PathBuf>,
         #[arg(short, long)]
+        #[arg(value_hint = clap::ValueHint::DirPath)]
         #[arg(conflicts_with = "output_path")]
         #[arg(help = "Assign a destination of your extracted files. It should be a directory path")]
         output:      Option<PathBuf>,
@@ -259,11 +288,13 @@ pub enum CLICommands {
     #[command(after_help = AFTER_HELP)]
     A {
         #[arg(required = true)]
+        #[arg(value_hint = clap::ValueHint::AnyPath)]
         #[arg(
             help = "Assign the source of your original files. It should be at least one file path"
         )]
         input_paths:         Vec<PathBuf>,
         #[arg(short, long)]
+        #[arg(value_hint = clap::ValueHint::FilePath)]
         #[arg(help = "Assign a destination of your extracted files. It should be a file path. \
                       Specify the file extension name in order to determine which archive \
                       format you want to use. [default archive format: RAR]")]

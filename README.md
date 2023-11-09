@@ -13,6 +13,7 @@ xcompress a foo.wav                      # Archive foo.wav to foo.rar
 xcompress a foo.wav /root/bar.txt        # Archive foo.wav and /root/bar.txt to foo.rar
 xcompress a -o /tmp/out.7z foo.wav       # Archive foo.wav to /tmp/out.7z
 xcompress a -b foo/bar                   # Archive foo/bar folder to bar.rar as small as possible
+xcompress a -f foo/bar -r 5              # Archive foo/bar folder to bar.rar as fast as possible and add 5% recovery record
 xcompress a -p password foo.wav          # Archive foo.wav to foo.rar with a password
 xcompress x foo.rar                      # Extract foo.rar into current working directory
 xcompress x foo.tar.gz /tmp/out_folder   # Extract foo.tar.gz into /tmp/out_folder
@@ -28,7 +29,7 @@ Commands:
 Options:
   -q, --quiet                          Make programs not print anything on the screen
   -s, --single-thread                  Use only one thread
-  -p, --password <PASSWORD>            Set password for your archive file. (Only supports 7Z, ZIP and RAR) Set an empty string to read a password from stdin
+  -p, --password [<PASSWORD>]          Set password for your archive file. (Only supports 7Z, ZIP and RAR) Set an empty string to read a password from stdin
       --compress-path <COMPRESS_PATH>  Specify the path of your compress executable binary file [default: compress]
       --zip-path <ZIP_PATH>            Specify the path of your zip executable binary file [default: zip]
       --unzip-path <UNZIP_PATH>        Specify the path of your unzip executable binary file [default: unzip]
@@ -47,7 +48,7 @@ Options:
       --pxz-path <PXZ_PATH>            Specify the path of your pxz executable binary file [default: pxz]
       --lzma-path <LZMA_PATH>          Specify the path of your lzma executable binary file [default: lzma]
       --unlzma-path <UNLZMA_PATH>      Specify the path of your unlzma executable binary file [default: unlzma]
-      --7Z_PATH <P7Z_PATH>             Specify the path of your 7z executable binary file [default: 7z]
+      --7z-path <7z-path>              Specify the path of your 7z executable binary file [default: 7z]
       --tar-path <TAR_PATH>            Specify the path of your tar executable binary file [default: tar]
       --rar-path <RAR_PATH>            Specify the path of your rar executable binary file [default: rar]
       --unrar-path <UNRAR_PATH>        Specify the path of your unrar executable binary file [default: unrar]
