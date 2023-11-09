@@ -211,7 +211,7 @@ pub struct ExecutablePaths {
     #[arg(help = "Specify the path of your unlzma executable binary file")]
     pub unlzma_path: String,
 
-    #[arg(name = "7z-path")]
+    #[arg(name = "7z-path", value_name = "7Z_PATH")]
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_7Z_PATH)]
