@@ -38,7 +38,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 },
                 Err(error) => {
                     return Err(error)
-                        .with_context(|| format!("{:?}", input_path.absolutize().unwrap()));
+                        .with_context(|| anyhow!("{:?}", input_path.absolutize().unwrap()));
                 },
             }
         }

@@ -23,7 +23,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
             Ok(input_path) => input_path,
             Err(error) => {
                 return Err(error)
-                    .with_context(|| format!("{:?}", input_path.absolutize().unwrap()));
+                    .with_context(|| anyhow!("{:?}", input_path.absolutize().unwrap()));
             },
         };
 
@@ -58,15 +58,15 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
             },
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 fs::create_dir_all(output_path)
-                    .with_context(|| format!("{:?}", output_path.absolutize().unwrap()))?;
+                    .with_context(|| anyhow!("{:?}", output_path.absolutize().unwrap()))?;
 
                 output_path
                     .canonicalize()
-                    .with_context(|| format!("{:?}", output_path.absolutize().unwrap()))?
+                    .with_context(|| anyhow!("{:?}", output_path.absolutize().unwrap()))?
             },
             Err(error) => {
                 return Err(error)
-                    .with_context(|| format!("{:?}", output_path.absolutize().unwrap()));
+                    .with_context(|| anyhow!("{:?}", output_path.absolutize().unwrap()));
             },
         };
 
@@ -538,7 +538,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 }
 
                 let file =
-                    File::create(file_path.as_path()).with_context(|| format!("{file_path:?}"))?;
+                    File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
 
                 if cpus > 1
                     && command_args!(&cli_args.executable_paths.pigz_path, "-V")
@@ -592,7 +592,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 }
 
                 let file =
-                    File::create(file_path.as_path()).with_context(|| format!("{file_path:?}"))?;
+                    File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
 
                 if cpus > 1 {
                     if command_args!(&cli_args.executable_paths.lbzip2_path, "-V")
@@ -666,7 +666,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 }
 
                 let file =
-                    File::create(file_path.as_path()).with_context(|| format!("{file_path:?}"))?;
+                    File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
 
                 if cpus > 1
                     && command_args!(&cli_args.executable_paths.plzip_path, "-V")
@@ -720,7 +720,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 }
 
                 let file =
-                    File::create(file_path.as_path()).with_context(|| format!("{file_path:?}"))?;
+                    File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
 
                 if cpus > 1
                     && command_args!(&cli_args.executable_paths.pxz_path, "-V")
@@ -774,7 +774,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 }
 
                 let file =
-                    File::create(file_path.as_path()).with_context(|| format!("{file_path:?}"))?;
+                    File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
 
                 if cpus > 1
                     && command_args!(&cli_args.executable_paths.pxz_path, "-V")
@@ -925,7 +925,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 }
 
                 let file =
-                    File::create(file_path.as_path()).with_context(|| format!("{file_path:?}"))?;
+                    File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
 
                 if cpus > 1
                     && command_args!(&cli_args.executable_paths.pzstd_path, "-V")
