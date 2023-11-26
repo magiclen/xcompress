@@ -25,6 +25,7 @@ terminal_size = "0.3"
 
 anyhow = "1"
 
+byte-unit = "5"
 execute = "0.2"
 num_cpus = "1"
 scanner-rust = "2"
@@ -32,8 +33,3 @@ scanner-rust = "2"
 [dependencies.path-absolutize]
 version = "3"
 features = ["once_cell_cache"]
-
-[dependencies.byte-unit]
-version = "4"
-features = ["std"]
-default-features = false

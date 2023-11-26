@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fs, fs::File, io, process};
 
 use anyhow::{anyhow, Context};
-use byte_unit::{Byte, ByteUnit};
+use byte_unit::{Byte, Unit};
 use execute::{command_args, Execute};
 use path_absolutize::{Absolutize, CWD};
 
@@ -703,15 +703,14 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
                         }
 
                         if let Some(d) = split {
-                            let byte = Byte::from_str(d)?;
+                            let byte = Byte::parse_str(d, true)?;
 
-                            if byte.get_bytes() < 65536 {
+                            if byte.as_u64() < 65536 {
                                 return Err(anyhow!("The split size is too small."));
                             } else {
                                 command2.arg(format!(
                                     "-v{}k",
-                                    byte.get_adjusted_unit(ByteUnit::KiB).get_value().round()
-                                        as u32
+                                    byte.get_adjusted_unit(Unit::KiB).get_value().round() as u32
                                 ));
                             }
                         }
@@ -1418,15 +1417,15 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 if let Some(d) = split {
                     let mut volume = String::from("-v");
 
-                    let byte = Byte::from_str(d)?;
+                    let byte = Byte::parse_str(d, true)?;
 
-                    if byte.get_bytes() < 65536 {
+                    if byte.as_u64() < 65536 {
                         return Err(anyhow!("The split size is too small."));
                     } else {
                         volume.push_str(
                             format!(
                                 "{}k",
-                                byte.get_adjusted_unit(ByteUnit::KiB).get_value().round() as u32
+                                byte.get_adjusted_unit(Unit::KiB).get_value().round() as u32
                             )
                             .as_str(),
                         );
@@ -1451,9 +1450,9 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let password = read_password(cli_args.password)?;
 
                 let split = if let Some(d) = split {
-                    let byte = Byte::from_str(d)?;
+                    let byte = Byte::parse_str(d, true)?;
 
-                    if byte.get_bytes() < 65536 {
+                    if byte.as_u64() < 65536 {
                         return Err(anyhow!("The split size is too small."));
                     }
 
@@ -1534,7 +1533,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
                         "-s",
                         format!(
                             "{}k",
-                            byte.get_adjusted_unit(ByteUnit::KiB).get_value().round() as u32
+                            byte.get_adjusted_unit(Unit::KiB).get_value().round() as u32
                         )
                     );
 
@@ -1612,14 +1611,14 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 }
 
                 if let Some(d) = split {
-                    let byte = Byte::from_str(d)?;
+                    let byte = Byte::parse_str(d, true)?;
 
-                    if byte.get_bytes() < 65536 {
+                    if byte.as_u64() < 65536 {
                         return Err(anyhow!("The split size is too small."));
                     } else {
                         command.arg(format!(
                             "-v{}k",
-                            byte.get_adjusted_unit(ByteUnit::KiB).get_value().round() as u32
+                            byte.get_adjusted_unit(Unit::KiB).get_value().round() as u32
                         ));
                     }
                 }
