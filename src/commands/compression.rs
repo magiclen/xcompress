@@ -5,7 +5,6 @@ use std::{
     fs::File,
     io,
     path::{Path, PathBuf},
-    process,
     process::{Command, Stdio},
 };
 
@@ -14,7 +13,7 @@ use byte_unit::{Byte, Unit};
 use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
-use super::{cpu_count, execute_pipeline, exit_with_cleanup, read_password, try_delete_file};
+use super::{cleanup_output, cpu_count, execute_pipeline, read_password, try_delete_file};
 use crate::{
     archive_format::ArchiveFormat,
     cli::{CLIArgs, CLICommands, ExecutablePaths},
@@ -289,7 +288,7 @@ fn add_input_paths(command: &mut Command, input_paths: &[PathBuf]) -> anyhow::Re
     Ok(())
 }
 
-pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
+pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
     let CLICommands::A {
         mut input_paths,
         output_path,
@@ -421,10 +420,10 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             // `compress` exits with 2 when the input cannot be made smaller, but its output is still complete
             if format == ArchiveFormat::TarZ && code == Some(2) {
-                process::exit(2);
+                return Ok(code);
             }
 
-            exit_with_cleanup(code, output_path.as_path());
+            return Ok(cleanup_output(code, output_path.as_path()));
         },
         ArchiveFormat::Z
         | ArchiveFormat::Gzip
@@ -449,7 +448,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                 .inspect_err(|_| try_delete_file(output_path.as_path()))?;
 
-            exit_with_cleanup(code, output_path.as_path());
+            return Ok(cleanup_output(code, output_path.as_path()));
         },
         ArchiveFormat::TarZstd => {
             let mut command1 = command_args!(&cli_args.executable_paths.tar_path, "-c", "-f", "-");
@@ -460,14 +459,14 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Zstd => {
             let mut command = compressor.zstd(input_paths[0].as_os_str(), output_path.as_path());
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Tar7z => {
             let mut command1 = command_args!(&cli_args.executable_paths.tar_path, "-c", "-f", "-");
@@ -502,7 +501,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Tar => {
             let mut command = command_args!(&cli_args.executable_paths.tar_path, "-c");
@@ -518,7 +517,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::P7z => {
             let mut command = command_args!(
@@ -549,7 +548,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Zip => {
             // 7z cannot split a zip archive, so a whole one is created first and then split by zip
@@ -596,11 +595,11 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
             let Some(kib) = split else {
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             };
 
             if code != Some(0) {
-                exit_with_cleanup(code, output_tmp_path.as_ref());
+                return Ok(cleanup_output(code, output_tmp_path.as_ref()));
             }
 
             let mut command =
@@ -626,7 +625,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             try_delete_file(output_tmp_path.as_ref());
 
-            exit_with_cleanup(code, output_path.as_path());
+            return Ok(cleanup_output(code, output_path.as_path()));
         },
         ArchiveFormat::Rar => {
             let mut command = command_args!(
@@ -659,7 +658,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
     }
 }

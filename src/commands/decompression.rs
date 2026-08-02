@@ -1,16 +1,16 @@
-use std::{fs, fs::File, io, process, process::Stdio};
+use std::{fs, fs::File, io, process::Stdio};
 
 use anyhow::{Context, anyhow};
 use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
-use super::{cpu_count, execute_pipeline, exit_with_cleanup, read_password, try_delete_file};
+use super::{cleanup_output, cpu_count, execute_pipeline, read_password, try_delete_file};
 use crate::{
     archive_format::ArchiveFormat,
     cli::{CLIArgs, CLICommands},
 };
 
-pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
+pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
     let CLICommands::X {
         input_path,
         output_path,
@@ -97,7 +97,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             }
 
             let mut command = command_args!(
@@ -116,7 +116,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::TarBzip2 => {
             if cpus > 1 {
@@ -148,7 +148,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                     let code =
                         execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-                    process::exit(code.unwrap_or(1));
+                    return Ok(code);
                 }
 
                 if command_args!(&cli_args.executable_paths.pbzip2_path, "-V")
@@ -178,7 +178,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                     let code =
                         execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-                    process::exit(code.unwrap_or(1));
+                    return Ok(code);
                 }
             }
 
@@ -198,7 +198,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::TarLz => {
             if cpus > 1
@@ -229,7 +229,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             }
 
             if command_args!(&cli_args.executable_paths.lunzip_path, "-V")
@@ -253,7 +253,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             }
 
             let mut command = command_args!(
@@ -273,7 +273,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::TarXz => {
             if cpus > 1
@@ -304,7 +304,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             }
 
             let mut command = command_args!(
@@ -323,7 +323,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::TarLzma => {
             if cpus > 1
@@ -356,7 +356,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             }
 
             if command_args!(&cli_args.executable_paths.unlzma_path, "-V")
@@ -380,7 +380,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             }
 
             let mut command = command_args!(
@@ -400,7 +400,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Tar7z => {
             let password = read_password(cli_args.password)?;
@@ -431,7 +431,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::TarZstd => {
             if cpus > 1
@@ -462,7 +462,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             }
 
             if command_args!(&cli_args.executable_paths.unzstd_path, "-V")
@@ -486,7 +486,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             }
 
             let mut command = command_args!(
@@ -506,7 +506,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Tar => {
             let mut command = command_args!(
@@ -524,7 +524,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Z | ArchiveFormat::Gzip => {
             let file_path = output_path.join(input_path.file_stem().unwrap());
@@ -555,7 +555,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             if command_args!(&cli_args.executable_paths.gunzip_path, "-V")
@@ -570,7 +570,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             let mut command =
@@ -581,7 +581,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                 .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-            exit_with_cleanup(code, file_path.as_path());
+            return Ok(cleanup_output(code, file_path.as_path()));
         },
         ArchiveFormat::Bzip2 => {
             let file_path = output_path.join(input_path.file_stem().unwrap());
@@ -612,7 +612,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                     let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                         .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                    exit_with_cleanup(code, file_path.as_path());
+                    return Ok(cleanup_output(code, file_path.as_path()));
                 }
 
                 if command_args!(&cli_args.executable_paths.pbzip2_path, "-V")
@@ -632,7 +632,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                     let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                         .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                    exit_with_cleanup(code, file_path.as_path());
+                    return Ok(cleanup_output(code, file_path.as_path()));
                 }
             }
 
@@ -648,7 +648,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             let mut command =
@@ -659,7 +659,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                 .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-            exit_with_cleanup(code, file_path.as_path());
+            return Ok(cleanup_output(code, file_path.as_path()));
         },
         ArchiveFormat::Lz => {
             let file_path = output_path.join(input_path.file_stem().unwrap());
@@ -690,7 +690,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             if command_args!(&cli_args.executable_paths.lunzip_path, "-V")
@@ -705,7 +705,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             let mut command =
@@ -716,7 +716,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                 .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-            exit_with_cleanup(code, file_path.as_path());
+            return Ok(cleanup_output(code, file_path.as_path()));
         },
         ArchiveFormat::Xz => {
             let file_path = output_path.join(input_path.file_stem().unwrap());
@@ -747,7 +747,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             if command_args!(&cli_args.executable_paths.unxz_path, "-V")
@@ -762,7 +762,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             let mut command =
@@ -773,7 +773,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                 .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-            exit_with_cleanup(code, file_path.as_path());
+            return Ok(cleanup_output(code, file_path.as_path()));
         },
         ArchiveFormat::Lzma => {
             let file_path = output_path.join(input_path.file_stem().unwrap());
@@ -806,7 +806,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             if command_args!(&cli_args.executable_paths.unlzma_path, "-V")
@@ -821,7 +821,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             let mut command =
@@ -832,7 +832,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                 .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-            exit_with_cleanup(code, file_path.as_path());
+            return Ok(cleanup_output(code, file_path.as_path()));
         },
         ArchiveFormat::P7z => {
             let password = read_password(cli_args.password)?;
@@ -855,7 +855,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Zip => {
             let password = read_password(cli_args.password)?;
@@ -876,7 +876,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Rar => {
             let password = read_password(cli_args.password)?;
@@ -904,7 +904,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                process::exit(code.unwrap_or(1));
+                return Ok(code);
             }
 
             let mut command = command_args!(&cli_args.executable_paths.rar_path, "x", "-o+");
@@ -926,7 +926,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            process::exit(code.unwrap_or(1));
+            return Ok(code);
         },
         ArchiveFormat::Zstd => {
             let file_path = output_path.join(input_path.file_stem().unwrap());
@@ -957,7 +957,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             if command_args!(&cli_args.executable_paths.unzstd_path, "-V")
@@ -972,7 +972,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                 let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                     .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-                exit_with_cleanup(code, file_path.as_path());
+                return Ok(cleanup_output(code, file_path.as_path()));
             }
 
             let mut command =
@@ -983,7 +983,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
                 .inspect_err(|_| try_delete_file(file_path.as_path()))?;
 
-            exit_with_cleanup(code, file_path.as_path());
+            return Ok(cleanup_output(code, file_path.as_path()));
         },
     }
 }

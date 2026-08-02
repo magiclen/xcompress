@@ -1,7 +1,6 @@
 use std::{
     io,
     path::Path,
-    process,
     process::{Child, Command, Stdio},
 };
 
@@ -89,20 +88,43 @@ fn kill_children(children: Vec<Child>) {
     }
 }
 
-/// Exit with `code`, deleting `output_path` if the commands did not succeed.
-pub fn exit_with_cleanup<P: AsRef<Path>>(code: Option<i32>, output_path: P) -> ! {
-    match code {
-        Some(code) => {
-            if code != 0 {
-                try_delete_file(output_path);
-            }
+/// Delete `output_path` if the commands did not succeed and return `code` unchanged.
+pub fn cleanup_output<P: AsRef<Path>>(code: Option<i32>, output_path: P) -> Option<i32> {
+    if code != Some(0) {
+        try_delete_file(output_path);
+    }
 
-            process::exit(code);
-        },
-        None => {
-            try_delete_file(output_path);
+    code
+}
 
-            process::exit(1);
-        },
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn successful_pipeline() {
+        let mut command = Command::new("sh");
+        command.args(["-c", "exit 0"]);
+
+        assert_eq!(Some(0), execute_pipeline(&mut [&mut command], true).unwrap());
+    }
+
+    #[test]
+    fn upstream_failure() {
+        let mut command1 = Command::new("sh");
+        command1.args(["-c", "exit 7"]);
+
+        let mut command2 = Command::new("sh");
+        command2.args(["-c", "cat >/dev/null"]);
+
+        assert_eq!(Some(7), execute_pipeline(&mut [&mut command1, &mut command2], true).unwrap());
+    }
+
+    #[test]
+    fn signal_without_exit_code() {
+        let mut command = Command::new("sh");
+        command.args(["-c", "kill -TERM $$"]);
+
+        assert_eq!(None, execute_pipeline(&mut [&mut command], true).unwrap());
     }
 }

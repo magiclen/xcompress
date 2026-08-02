@@ -2,23 +2,21 @@ mod archive_format;
 mod cli;
 mod commands;
 
+use std::process;
+
 use cli::*;
 
 fn main() -> anyhow::Result<()> {
     let args = get_args();
 
-    match &args.command {
+    let code = match &args.command {
         CLICommands::A {
             ..
-        } => {
-            commands::handle_compression(args)?;
-        },
+        } => commands::handle_compression(args)?,
         CLICommands::X {
             ..
-        } => {
-            commands::handle_decompression(args)?;
-        },
-    }
+        } => commands::handle_decompression(args)?,
+    };
 
-    Ok(())
+    process::exit(code.unwrap_or(1));
 }
