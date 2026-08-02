@@ -41,7 +41,6 @@ const DEFAULT_LUNZIP_PATH: &str = "lunzip";
 const DEFAULT_PLZIP_PATH: &str = "plzip";
 const DEFAULT_XZ_PATH: &str = "xz";
 const DEFAULT_UNXZ_PATH: &str = "unxz";
-const DEFAULT_PXZ_PATH: &str = "pxz";
 const DEFAULT_LZMA_PATH: &str = "lzma";
 const DEFAULT_UNLZMA_PATH: &str = "unlzma";
 const DEFAULT_7Z_PATH: &str = "7z";
@@ -190,13 +189,6 @@ pub struct ExecutablePaths {
     #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your unxz executable binary file")]
     pub unxz_path: String,
-
-    #[arg(long)]
-    #[arg(global = true)]
-    #[arg(default_value = DEFAULT_PXZ_PATH)]
-    #[arg(value_hint = clap::ValueHint::CommandName)]
-    #[arg(help = "Specify the path of your pxz executable binary file")]
-    pub pxz_path: String,
 
     #[arg(long)]
     #[arg(global = true)]

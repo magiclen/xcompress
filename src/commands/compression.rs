@@ -175,27 +175,8 @@ impl Compressor<'_> {
     }
 
     fn xz(&self, input: &OsStr) -> Command {
-        if self.cpus > 1
-            && command_args!(&self.executable_paths.pxz_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-        {
-            let mut command = command_args!(
-                &self.executable_paths.pxz_path,
-                "-z",
-                "-c",
-                "-T",
-                self.threads,
-                input
-            );
-
-            self.quiet_arg(&mut command);
-            self.level.apply(&mut command, &["-9", "-e"], &["-0"]);
-
-            return command;
-        }
-
-        let mut command = command_args!(&self.executable_paths.xz_path, "-z", "-c", input);
+        let mut command =
+            command_args!(&self.executable_paths.xz_path, "-z", "-c", "-T", self.threads, input);
 
         self.quiet_arg(&mut command);
         self.level.apply(&mut command, &["-9", "-e"], &["-0"]);
@@ -204,29 +185,8 @@ impl Compressor<'_> {
     }
 
     fn lzma(&self, input: &OsStr) -> Command {
-        if self.cpus > 1
-            && command_args!(&self.executable_paths.pxz_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-        {
-            let mut command = command_args!(
-                &self.executable_paths.pxz_path,
-                "-z",
-                "-c",
-                "-T",
-                self.threads,
-                "-F",
-                "lzma",
-                input
-            );
-
-            self.quiet_arg(&mut command);
-            self.level.apply(&mut command, &["-9", "-e"], &["-0"]);
-
-            return command;
-        }
-
-        let mut command = command_args!(&self.executable_paths.lzma_path, "-z", "-c", input);
+        let mut command =
+            command_args!(&self.executable_paths.lzma_path, "-z", "-c", "-T", self.threads, input);
 
         self.quiet_arg(&mut command);
         self.level.apply(&mut command, &["-9", "-e"], &["-0"]);

@@ -280,129 +280,54 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             Ok(code)
         },
         ArchiveFormat::TarXz => {
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.pxz_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command1 = command_args!(
-                    &cli_args.executable_paths.pxz_path,
-                    "-d",
-                    "-c",
-                    "-T",
-                    threads,
-                    input_path
-                );
-                let mut command2 = command_args!(
-                    &cli_args.executable_paths.tar_path,
-                    "-x",
-                    "-C",
-                    output_path.as_path(),
-                    "-f",
-                    "-"
-                );
-
-                if !cli_args.quiet {
-                    command2.arg("-v");
-                }
-
-                let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
-
-                return Ok(code);
-            }
-
-            let mut command = command_args!(
+            let mut command1 = command_args!(
+                &cli_args.executable_paths.unxz_path,
+                "-d",
+                "-c",
+                "-T",
+                threads,
+                input_path
+            );
+            let mut command2 = command_args!(
                 &cli_args.executable_paths.tar_path,
-                "-J",
                 "-x",
                 "-C",
                 output_path.as_path(),
                 "-f",
-                input_path
+                "-"
             );
 
             if !cli_args.quiet {
-                command.arg("-v");
+                command2.arg("-v");
             }
 
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
+            let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
             Ok(code)
         },
         ArchiveFormat::TarLzma => {
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.pxz_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command1 = command_args!(
-                    &cli_args.executable_paths.pxz_path,
-                    "-d",
-                    "-c",
-                    "-T",
-                    threads,
-                    "-F",
-                    "lzma",
-                    input_path
-                );
-                let mut command2 = command_args!(
-                    &cli_args.executable_paths.tar_path,
-                    "-x",
-                    "-C",
-                    output_path.as_path(),
-                    "-f",
-                    "-"
-                );
-
-                if !cli_args.quiet {
-                    command2.arg("-v");
-                }
-
-                let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
-
-                return Ok(code);
-            }
-
-            if command_args!(&cli_args.executable_paths.unlzma_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-            {
-                let mut command = command_args!(
-                    &cli_args.executable_paths.tar_path,
-                    "-I",
-                    &cli_args.executable_paths.unlzma_path,
-                    "-x",
-                    "-C",
-                    output_path.as_path(),
-                    "-f",
-                    input_path
-                );
-
-                if !cli_args.quiet {
-                    command.arg("-v");
-                }
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return Ok(code);
-            }
-
-            let mut command = command_args!(
+            let mut command1 = command_args!(
+                &cli_args.executable_paths.unlzma_path,
+                "-d",
+                "-c",
+                "-T",
+                threads,
+                input_path
+            );
+            let mut command2 = command_args!(
                 &cli_args.executable_paths.tar_path,
-                "-I",
-                &cli_args.executable_paths.lzma_path,
                 "-x",
                 "-C",
                 output_path.as_path(),
                 "-f",
-                input_path
+                "-"
             );
 
             if !cli_args.quiet {
-                command.arg("-v");
+                command2.arg("-v");
             }
 
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
+            let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
             Ok(code)
         },
@@ -726,43 +651,14 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             let file =
                 File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
 
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.pxz_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command = command_args!(
-                    &cli_args.executable_paths.pxz_path,
-                    "-d",
-                    "-c",
-                    "-T",
-                    threads,
-                    input_path
-                );
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            if command_args!(&cli_args.executable_paths.unxz_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-            {
-                let mut command =
-                    command_args!(&cli_args.executable_paths.unxz_path, "-c", input_path);
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            let mut command =
-                command_args!(&cli_args.executable_paths.xz_path, "-d", "-c", input_path);
+            let mut command = command_args!(
+                &cli_args.executable_paths.unxz_path,
+                "-d",
+                "-c",
+                "-T",
+                threads,
+                input_path
+            );
 
             command.stdout(file);
 
@@ -781,45 +677,14 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             let file =
                 File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
 
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.pxz_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command = command_args!(
-                    &cli_args.executable_paths.pxz_path,
-                    "-d",
-                    "-c",
-                    "-T",
-                    threads,
-                    "-F",
-                    "lzma",
-                    input_path
-                );
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            if command_args!(&cli_args.executable_paths.unlzma_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-            {
-                let mut command =
-                    command_args!(&cli_args.executable_paths.unlzma_path, "-c", input_path);
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            let mut command =
-                command_args!(&cli_args.executable_paths.lzma_path, "-d", "-c", input_path);
+            let mut command = command_args!(
+                &cli_args.executable_paths.unlzma_path,
+                "-d",
+                "-c",
+                "-T",
+                threads,
+                input_path
+            );
 
             command.stdout(file);
 

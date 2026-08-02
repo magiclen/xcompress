@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{os::unix::ffi::OsStrExt, path::Path};
 
 use anyhow::anyhow;
 
@@ -29,51 +29,51 @@ impl ArchiveFormat {
     pub fn from_file_path<P: AsRef<Path>>(file_path: P) -> anyhow::Result<Self> {
         let file_path = file_path.as_ref();
 
-        if let Some(file_name) = file_path.file_name()
-            && let Some(file_name) = file_name.to_str()
-        {
-            let file_name = file_name.to_ascii_lowercase();
+        if let Some(file_name) = file_path.file_name() {
+            let file_name = file_name.as_bytes();
+            let ends_with = |suffix: &[u8]| {
+                file_name
+                    .get(file_name.len().saturating_sub(suffix.len())..)
+                    .is_some_and(|ending| ending.eq_ignore_ascii_case(suffix))
+            };
 
-            if file_name.ends_with(".tar.z") {
+            if ends_with(b".tar.z") {
                 return Ok(ArchiveFormat::TarZ);
-            } else if file_name.ends_with(".tar.gz") || file_name.ends_with(".tgz") {
+            } else if ends_with(b".tar.gz") || ends_with(b".tgz") {
                 return Ok(ArchiveFormat::TarGzip);
-            } else if file_name.ends_with(".tar.bz2") || file_name.ends_with(".tbz2") {
+            } else if ends_with(b".tar.bz2") || ends_with(b".tbz2") {
                 return Ok(ArchiveFormat::TarBzip2);
-            } else if file_name.ends_with(".tar.lz") {
+            } else if ends_with(b".tar.lz") {
                 return Ok(ArchiveFormat::TarLz);
-            } else if file_name.ends_with(".tar.xz") || file_name.ends_with(".txz") {
+            } else if ends_with(b".tar.xz") || ends_with(b".txz") {
                 return Ok(ArchiveFormat::TarXz);
-            } else if file_name.ends_with(".tar.lzma") || file_name.ends_with(".tlz") {
+            } else if ends_with(b".tar.lzma") || ends_with(b".tlz") {
                 return Ok(ArchiveFormat::TarLzma);
-            } else if file_name.ends_with(".tar.7z")
-                || file_name.ends_with(".tar.7z.001")
-                || file_name.ends_with(".t7z")
-            {
+            } else if ends_with(b".tar.7z") || ends_with(b".tar.7z.001") || ends_with(b".t7z") {
                 return Ok(ArchiveFormat::Tar7z);
-            } else if file_name.ends_with(".tar.zst") {
+            } else if ends_with(b".tar.zst") {
                 return Ok(ArchiveFormat::TarZstd);
-            } else if file_name.ends_with(".tar") {
+            } else if ends_with(b".tar") {
                 return Ok(ArchiveFormat::Tar);
-            } else if file_name.ends_with(".z") {
+            } else if ends_with(b".z") {
                 return Ok(ArchiveFormat::Z);
-            } else if file_name.ends_with(".zip") {
+            } else if ends_with(b".zip") {
                 return Ok(ArchiveFormat::Zip);
-            } else if file_name.ends_with(".gz") {
+            } else if ends_with(b".gz") {
                 return Ok(ArchiveFormat::Gzip);
-            } else if file_name.ends_with(".bz2") {
+            } else if ends_with(b".bz2") {
                 return Ok(ArchiveFormat::Bzip2);
-            } else if file_name.ends_with(".lz") {
+            } else if ends_with(b".lz") {
                 return Ok(ArchiveFormat::Lz);
-            } else if file_name.ends_with(".xz") {
+            } else if ends_with(b".xz") {
                 return Ok(ArchiveFormat::Xz);
-            } else if file_name.ends_with(".lzma") {
+            } else if ends_with(b".lzma") {
                 return Ok(ArchiveFormat::Lzma);
-            } else if file_name.ends_with(".7z") || file_name.ends_with(".7z.001") {
+            } else if ends_with(b".7z") || ends_with(b".7z.001") {
                 return Ok(ArchiveFormat::P7z);
-            } else if file_name.ends_with(".rar") {
+            } else if ends_with(b".rar") {
                 return Ok(ArchiveFormat::Rar);
-            } else if file_name.ends_with(".zst") {
+            } else if ends_with(b".zst") {
                 return Ok(ArchiveFormat::Zstd);
             }
         }
@@ -111,6 +111,8 @@ impl ArchiveFormat {
 
 #[cfg(test)]
 mod tests {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+
     use super::*;
 
     #[test]
@@ -145,5 +147,12 @@ mod tests {
 
         assert!(ArchiveFormat::from_file_path("foo.unknown").is_err());
         assert!(ArchiveFormat::from_file_path("foo").is_err());
+    }
+
+    #[test]
+    fn non_utf8_file_name() {
+        let file_name = OsString::from_vec(b"archive-\xFF.tar.GZ".to_vec());
+
+        assert_eq!(ArchiveFormat::TarGzip, ArchiveFormat::from_file_path(file_name).unwrap());
     }
 }
