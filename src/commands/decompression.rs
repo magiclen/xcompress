@@ -1,4 +1,9 @@
-use std::{fs, fs::File, io, process::Stdio};
+use std::{
+    fs,
+    fs::File,
+    io,
+    process::{Command, Stdio},
+};
 
 use anyhow::{Context, anyhow};
 use execute::{Execute, command_args};
@@ -11,8 +16,157 @@ use super::{
 };
 use crate::{
     archive_format::ArchiveFormat,
-    cli::{CLIArgs, CLICommands},
+    cli::{CLIArgs, CLICommands, ExecutablePaths},
 };
+
+struct Decompressor<'a> {
+    executable_paths: &'a ExecutablePaths,
+    threads:          &'a str,
+    cpus:             usize,
+}
+
+impl Decompressor<'_> {
+    fn command(&self, format: ArchiveFormat, input: &std::ffi::OsStr) -> Command {
+        match format {
+            ArchiveFormat::Z
+            | ArchiveFormat::Gzip
+            | ArchiveFormat::TarZ
+            | ArchiveFormat::TarGzip => self.gzip(input),
+            ArchiveFormat::Bzip2 | ArchiveFormat::TarBzip2 => self.bzip2(input),
+            ArchiveFormat::Lz | ArchiveFormat::TarLz => self.lzip(input),
+            ArchiveFormat::Xz | ArchiveFormat::TarXz => self.xz(input),
+            ArchiveFormat::Lzma | ArchiveFormat::TarLzma => self.lzma(input),
+            ArchiveFormat::Zstd | ArchiveFormat::TarZstd => self.zstd(input),
+            _ => unreachable!(),
+        }
+    }
+
+    fn gzip(&self, input: &std::ffi::OsStr) -> Command {
+        if self.cpus > 1
+            && command_args!(&self.executable_paths.pigz_path, "-V")
+                .execute_check_exit_status_code(0)
+                .is_ok()
+        {
+            return command_args!(
+                &self.executable_paths.pigz_path,
+                "-d",
+                "-c",
+                "-p",
+                self.threads,
+                input
+            );
+        }
+
+        if command_args!(&self.executable_paths.gunzip_path, "-V")
+            .execute_check_exit_status_code(0)
+            .is_ok()
+        {
+            return command_args!(&self.executable_paths.gunzip_path, "-c", input);
+        }
+
+        command_args!(&self.executable_paths.gzip_path, "-d", "-c", input)
+    }
+
+    fn bzip2(&self, input: &std::ffi::OsStr) -> Command {
+        if self.cpus > 1 {
+            if command_args!(&self.executable_paths.lbzip2_path, "-V")
+                .execute_check_exit_status_code(0)
+                .is_ok()
+            {
+                return command_args!(
+                    &self.executable_paths.lbzip2_path,
+                    "-d",
+                    "-c",
+                    "-n",
+                    self.threads,
+                    input
+                );
+            }
+
+            if command_args!(&self.executable_paths.pbzip2_path, "-V")
+                .execute_check_exit_status_code(0)
+                .is_ok()
+            {
+                return command_args!(
+                    &self.executable_paths.pbzip2_path,
+                    "-d",
+                    "-c",
+                    format!("-p{}", self.threads),
+                    input
+                );
+            }
+        }
+
+        if command_args!(&self.executable_paths.bunzip2_path, "-V")
+            .execute_check_exit_status_code(0)
+            .is_ok()
+        {
+            return command_args!(&self.executable_paths.bunzip2_path, "-c", input);
+        }
+
+        command_args!(&self.executable_paths.bzip2_path, "-d", "-c", input)
+    }
+
+    fn lzip(&self, input: &std::ffi::OsStr) -> Command {
+        if self.cpus > 1
+            && command_args!(&self.executable_paths.plzip_path, "-V")
+                .execute_check_exit_status_code(0)
+                .is_ok()
+        {
+            return command_args!(
+                &self.executable_paths.plzip_path,
+                "-d",
+                "-c",
+                "-n",
+                self.threads,
+                input
+            );
+        }
+
+        if command_args!(&self.executable_paths.lunzip_path, "-V")
+            .execute_check_exit_status_code(0)
+            .is_ok()
+        {
+            return command_args!(&self.executable_paths.lunzip_path, "-c", input);
+        }
+
+        command_args!(&self.executable_paths.lzip_path, "-d", "-c", input)
+    }
+
+    fn xz(&self, input: &std::ffi::OsStr) -> Command {
+        command_args!(&self.executable_paths.unxz_path, "-d", "-c", "-T", self.threads, input)
+    }
+
+    fn lzma(&self, input: &std::ffi::OsStr) -> Command {
+        command_args!(&self.executable_paths.unlzma_path, "-d", "-c", "-T", self.threads, input)
+    }
+
+    fn zstd(&self, input: &std::ffi::OsStr) -> Command {
+        if self.cpus > 1
+            && command_args!(&self.executable_paths.pzstd_path, "-V")
+                .execute_check_exit_status_code(0)
+                .is_ok()
+        {
+            return command_args!(
+                &self.executable_paths.pzstd_path,
+                "-d",
+                "-c",
+                "-p",
+                self.threads,
+                input
+            );
+        }
+
+        if command_args!(&self.executable_paths.unzstd_path, "-V")
+            .execute_check_exit_status_code(0)
+            .is_ok()
+        {
+            return command_args!(&self.executable_paths.unzstd_path, "-c", input);
+        }
+
+        command_args!(&self.executable_paths.zstd_path, "-d", "-c", input)
+    }
+}
 
 pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
     let CLICommands::X {
@@ -70,250 +224,21 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
     let threads = cpus.to_string();
     let threads = threads.as_str();
+    let decompressor = Decompressor {
+        executable_paths: &cli_args.executable_paths,
+        threads,
+        cpus,
+    };
 
     match format {
-        ArchiveFormat::TarZ | ArchiveFormat::TarGzip => {
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.pigz_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command1 = command_args!(
-                    &cli_args.executable_paths.pigz_path,
-                    "-d",
-                    "-c",
-                    "-p",
-                    threads,
-                    input_path
-                );
-                let mut command2 = command_args!(
-                    &cli_args.executable_paths.tar_path,
-                    "-x",
-                    "-C",
-                    output_path.as_path(),
-                    "-f",
-                    "-"
-                );
-
-                if !cli_args.quiet {
-                    command2.arg("-v");
-                }
-
-                let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
-
-                return Ok(code);
-            }
-
-            let mut command = command_args!(
-                &cli_args.executable_paths.tar_path,
-                "-z",
-                "-x",
-                "-C",
-                output_path.as_path(),
-                "-f",
-                input_path
-            );
-
-            if !cli_args.quiet {
-                command.arg("-v");
-            }
-
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-            Ok(code)
-        },
-        ArchiveFormat::TarBzip2 => {
-            if cpus > 1 {
-                if command_args!(&cli_args.executable_paths.lbzip2_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-                {
-                    let mut command1 = command_args!(
-                        &cli_args.executable_paths.lbzip2_path,
-                        "-d",
-                        "-c",
-                        "-n",
-                        threads,
-                        input_path
-                    );
-                    let mut command2 = command_args!(
-                        &cli_args.executable_paths.tar_path,
-                        "-x",
-                        "-C",
-                        output_path.as_path(),
-                        "-f",
-                        "-"
-                    );
-
-                    if !cli_args.quiet {
-                        command2.arg("-v");
-                    }
-
-                    let code =
-                        execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
-
-                    return Ok(code);
-                }
-
-                if command_args!(&cli_args.executable_paths.pbzip2_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-                {
-                    let mut command1 = command_args!(
-                        &cli_args.executable_paths.pbzip2_path,
-                        "-d",
-                        "-c",
-                        format!("-p{threads}"),
-                        input_path
-                    );
-                    let mut command2 = command_args!(
-                        &cli_args.executable_paths.tar_path,
-                        "-x",
-                        "-C",
-                        output_path.as_path(),
-                        "-f",
-                        "-"
-                    );
-
-                    if !cli_args.quiet {
-                        command2.arg("-v");
-                    }
-
-                    let code =
-                        execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
-
-                    return Ok(code);
-                }
-            }
-
-            let mut command = command_args!(
-                &cli_args.executable_paths.tar_path,
-                "-j",
-                "-x",
-                "-C",
-                output_path.as_path(),
-                "-f",
-                input_path
-            );
-
-            if !cli_args.quiet {
-                command.arg("-v");
-            }
-
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-            Ok(code)
-        },
-        ArchiveFormat::TarLz => {
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.plzip_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command1 = command_args!(
-                    &cli_args.executable_paths.plzip_path,
-                    "-d",
-                    "-c",
-                    "-n",
-                    threads,
-                    input_path
-                );
-                let mut command2 = command_args!(
-                    &cli_args.executable_paths.tar_path,
-                    "-x",
-                    "-C",
-                    output_path.as_path(),
-                    "-f",
-                    "-"
-                );
-
-                if !cli_args.quiet {
-                    command2.arg("-v");
-                }
-
-                let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
-
-                return Ok(code);
-            }
-
-            if command_args!(&cli_args.executable_paths.lunzip_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-            {
-                let mut command = command_args!(
-                    &cli_args.executable_paths.tar_path,
-                    "-I",
-                    &cli_args.executable_paths.lunzip_path,
-                    "-x",
-                    "-C",
-                    output_path.as_path(),
-                    "-f",
-                    input_path
-                );
-
-                if !cli_args.quiet {
-                    command.arg("-v");
-                }
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return Ok(code);
-            }
-
-            let mut command = command_args!(
-                &cli_args.executable_paths.tar_path,
-                "-I",
-                &cli_args.executable_paths.lzip_path,
-                "-x",
-                "-C",
-                output_path.as_path(),
-                "-f",
-                input_path
-            );
-
-            if !cli_args.quiet {
-                command.arg("-v");
-            }
-
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-            Ok(code)
-        },
-        ArchiveFormat::TarXz => {
-            let mut command1 = command_args!(
-                &cli_args.executable_paths.unxz_path,
-                "-d",
-                "-c",
-                "-T",
-                threads,
-                input_path
-            );
-            let mut command2 = command_args!(
-                &cli_args.executable_paths.tar_path,
-                "-x",
-                "-C",
-                output_path.as_path(),
-                "-f",
-                "-"
-            );
-
-            if !cli_args.quiet {
-                command2.arg("-v");
-            }
-
-            let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
-
-            Ok(code)
-        },
-        ArchiveFormat::TarLzma => {
-            let mut command1 = command_args!(
-                &cli_args.executable_paths.unlzma_path,
-                "-d",
-                "-c",
-                "-T",
-                threads,
-                input_path
-            );
+        ArchiveFormat::TarZ
+        | ArchiveFormat::TarGzip
+        | ArchiveFormat::TarBzip2
+        | ArchiveFormat::TarLz
+        | ArchiveFormat::TarXz
+        | ArchiveFormat::TarLzma
+        | ArchiveFormat::TarZstd => {
+            let mut command1 = decompressor.command(format, input_path.as_os_str());
             let mut command2 = command_args!(
                 &cli_args.executable_paths.tar_path,
                 "-x",
@@ -362,81 +287,6 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             Ok(code)
         },
-        ArchiveFormat::TarZstd => {
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.pzstd_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command1 = command_args!(
-                    &cli_args.executable_paths.pzstd_path,
-                    "-d",
-                    "-c",
-                    "-p",
-                    threads,
-                    input_path
-                );
-                let mut command2 = command_args!(
-                    &cli_args.executable_paths.tar_path,
-                    "-x",
-                    "-C",
-                    output_path.as_path(),
-                    "-f",
-                    "-"
-                );
-
-                if !cli_args.quiet {
-                    command2.arg("-v");
-                }
-
-                let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
-
-                return Ok(code);
-            }
-
-            if command_args!(&cli_args.executable_paths.unzstd_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-            {
-                let mut command = command_args!(
-                    &cli_args.executable_paths.tar_path,
-                    "-I",
-                    &cli_args.executable_paths.unzstd_path,
-                    "-x",
-                    "-C",
-                    output_path.as_path(),
-                    "-f",
-                    input_path
-                );
-
-                if !cli_args.quiet {
-                    command.arg("-v");
-                }
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return Ok(code);
-            }
-
-            let mut command = command_args!(
-                &cli_args.executable_paths.tar_path,
-                "-I",
-                &cli_args.executable_paths.zstd_path,
-                "-x",
-                "-C",
-                output_path.as_path(),
-                "-f",
-                input_path
-            );
-
-            if !cli_args.quiet {
-                command.arg("-v");
-            }
-
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-            Ok(code)
-        },
         ArchiveFormat::Tar => {
             let mut command = command_args!(
                 &cli_args.executable_paths.tar_path,
@@ -455,7 +305,13 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             Ok(code)
         },
-        ArchiveFormat::Z | ArchiveFormat::Gzip => {
+        ArchiveFormat::Z
+        | ArchiveFormat::Gzip
+        | ArchiveFormat::Bzip2
+        | ArchiveFormat::Lz
+        | ArchiveFormat::Xz
+        | ArchiveFormat::Lzma
+        | ArchiveFormat::Zstd => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
 
             if file_path.is_dir() {
@@ -465,226 +321,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             let staged_file = StagedFile::new(file_path.as_path())?;
             let file =
                 File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
-
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.pigz_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command = command_args!(
-                    &cli_args.executable_paths.pigz_path,
-                    "-d",
-                    "-c",
-                    "-p",
-                    threads,
-                    input_path
-                );
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            if command_args!(&cli_args.executable_paths.gunzip_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-            {
-                let mut command =
-                    command_args!(&cli_args.executable_paths.gunzip_path, "-c", input_path);
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            let mut command =
-                command_args!(&cli_args.executable_paths.gzip_path, "-d", "-c", input_path);
-
-            command.stdout(file);
-
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-            publish_on_success(code, staged_file)
-        },
-        ArchiveFormat::Bzip2 => {
-            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
-
-            if file_path.is_dir() {
-                return Err(anyhow!("{file_path:?} is a directory."));
-            }
-
-            let staged_file = StagedFile::new(file_path.as_path())?;
-            let file =
-                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
-
-            if cpus > 1 {
-                if command_args!(&cli_args.executable_paths.lbzip2_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-                {
-                    let mut command = command_args!(
-                        &cli_args.executable_paths.lbzip2_path,
-                        "-d",
-                        "-c",
-                        "-n",
-                        threads,
-                        input_path
-                    );
-
-                    command.stdout(file);
-
-                    let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                    return publish_on_success(code, staged_file);
-                }
-
-                if command_args!(&cli_args.executable_paths.pbzip2_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-                {
-                    let mut command = command_args!(
-                        &cli_args.executable_paths.pbzip2_path,
-                        "-d",
-                        "-c",
-                        format!("-p{threads}"),
-                        input_path
-                    );
-
-                    command.stdout(file);
-
-                    let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                    return publish_on_success(code, staged_file);
-                }
-            }
-
-            if command_args!(&cli_args.executable_paths.bunzip2_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-            {
-                let mut command =
-                    command_args!(&cli_args.executable_paths.bunzip2_path, "-c", input_path);
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            let mut command =
-                command_args!(&cli_args.executable_paths.bzip2_path, "-d", "-c", input_path);
-
-            command.stdout(file);
-
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-            publish_on_success(code, staged_file)
-        },
-        ArchiveFormat::Lz => {
-            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
-
-            if file_path.is_dir() {
-                return Err(anyhow!("{file_path:?} is a directory."));
-            }
-
-            let staged_file = StagedFile::new(file_path.as_path())?;
-            let file =
-                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
-
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.plzip_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command = command_args!(
-                    &cli_args.executable_paths.plzip_path,
-                    "-d",
-                    "-c",
-                    "-n",
-                    threads,
-                    input_path
-                );
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            if command_args!(&cli_args.executable_paths.lunzip_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-            {
-                let mut command =
-                    command_args!(&cli_args.executable_paths.lunzip_path, "-c", input_path);
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            let mut command =
-                command_args!(&cli_args.executable_paths.lzip_path, "-d", "-c", input_path);
-
-            command.stdout(file);
-
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-            publish_on_success(code, staged_file)
-        },
-        ArchiveFormat::Xz => {
-            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
-
-            if file_path.is_dir() {
-                return Err(anyhow!("{file_path:?} is a directory."));
-            }
-
-            let staged_file = StagedFile::new(file_path.as_path())?;
-            let file =
-                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
-
-            let mut command = command_args!(
-                &cli_args.executable_paths.unxz_path,
-                "-d",
-                "-c",
-                "-T",
-                threads,
-                input_path
-            );
-
-            command.stdout(file);
-
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-            publish_on_success(code, staged_file)
-        },
-        ArchiveFormat::Lzma => {
-            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
-
-            if file_path.is_dir() {
-                return Err(anyhow!("{file_path:?} is a directory."));
-            }
-
-            let staged_file = StagedFile::new(file_path.as_path())?;
-            let file =
-                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
-
-            let mut command = command_args!(
-                &cli_args.executable_paths.unlzma_path,
-                "-d",
-                "-c",
-                "-T",
-                threads,
-                input_path
-            );
+            let mut command = decompressor.command(format, input_path.as_os_str());
 
             command.stdout(file);
 
@@ -785,61 +422,6 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
             Ok(code)
-        },
-        ArchiveFormat::Zstd => {
-            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
-
-            if file_path.is_dir() {
-                return Err(anyhow!("{file_path:?} is a directory."));
-            }
-
-            let staged_file = StagedFile::new(file_path.as_path())?;
-            let file =
-                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
-
-            if cpus > 1
-                && command_args!(&cli_args.executable_paths.pzstd_path, "-V")
-                    .execute_check_exit_status_code(0)
-                    .is_ok()
-            {
-                let mut command = command_args!(
-                    &cli_args.executable_paths.pzstd_path,
-                    "-d",
-                    "-c",
-                    "-p",
-                    threads,
-                    input_path
-                );
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            if command_args!(&cli_args.executable_paths.unzstd_path, "-V")
-                .execute_check_exit_status_code(0)
-                .is_ok()
-            {
-                let mut command =
-                    command_args!(&cli_args.executable_paths.unzstd_path, "-c", input_path);
-
-                command.stdout(file);
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return publish_on_success(code, staged_file);
-            }
-
-            let mut command =
-                command_args!(&cli_args.executable_paths.zstd_path, "-d", "-c", input_path);
-
-            command.stdout(file);
-
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-            publish_on_success(code, staged_file)
         },
     }
 }
