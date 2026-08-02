@@ -663,3 +663,18 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_size() {
+        assert_eq!(64, parse_split_size("64KiB").unwrap());
+        assert_eq!(1024, parse_split_size("1MiB").unwrap());
+        assert_eq!(977, parse_split_size("1MB").unwrap());
+
+        assert!(parse_split_size("1KB").is_err());
+        assert!(parse_split_size("abc").is_err());
+    }
+}
