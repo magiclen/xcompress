@@ -12,14 +12,14 @@ const AFTER_HELP: &str = "Enjoy it! https://magiclen.org";
 
 const APP_ABOUT: &str = concat!(
     "XCompress is a free file archiver utility on Linux, providing multi-format archiving to and \
-     extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR and RAR.\n\nEXAMPLES:\n",
+     extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR, RAR and ZSTD.\n\nEXAMPLES:\n",
     concat_line!(prefix "xcompress ",
-        "a foo.wav                      # Archive foo.wav to foo.rar",
-        "a foo.wav /root/bar.txt        # Archive foo.wav and /root/bar.txt to foo.rar",
+        "a foo.wav                      # Archive foo.wav to foo.wav.rar",
+        "a foo.wav /root/bar.txt        # Archive foo.wav and /root/bar.txt to foo.wav.rar",
         "a -o /tmp/out.7z foo.wav       # Archive foo.wav to /tmp/out.7z",
         "a -b foo/bar                   # Archive foo/bar folder to bar.rar as small as possible",
         "a -f foo/bar -r 5              # Archive foo/bar folder to bar.rar as fast as possible and add 5% recovery record",
-        "a -p password foo.wav          # Archive foo.wav to foo.rar with a password",
+        "a -p password foo.wav          # Archive foo.wav to foo.wav.rar with a password",
         "x foo.rar                      # Extract foo.rar into current working directory",
         "x foo.tar.gz /tmp/out_folder   # Extract foo.tar.gz into /tmp/out_folder",
         "x -p password foo.rar          # Extract foo.rar with a password into current working directory"
@@ -113,12 +113,13 @@ pub struct ExecutablePaths {
     #[arg(help = "Specify the path of your gzip executable binary file")]
     pub gzip_path: String,
 
-    #[arg(long)]
+    // `gnuzip-path` is a typo which has to be kept for backward compatibility.
+    #[arg(long, alias = "gnuzip-path")]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_GUNZIP_PATH)]
     #[arg(value_hint = clap::ValueHint::CommandName)]
     #[arg(help = "Specify the path of your gunzip executable binary file")]
-    pub gnuzip_path: String,
+    pub gunzip_path: String,
 
     #[arg(long)]
     #[arg(global = true)]

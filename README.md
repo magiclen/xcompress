@@ -9,12 +9,12 @@ XCompress is a free file archiver utility on Linux, providing multi-format archi
 
 ```
 EXAMPLES:
-xcompress a foo.wav                      # Archive foo.wav to foo.rar
-xcompress a foo.wav /root/bar.txt        # Archive foo.wav and /root/bar.txt to foo.rar
+xcompress a foo.wav                      # Archive foo.wav to foo.wav.rar
+xcompress a foo.wav /root/bar.txt        # Archive foo.wav and /root/bar.txt to foo.wav.rar
 xcompress a -o /tmp/out.7z foo.wav       # Archive foo.wav to /tmp/out.7z
 xcompress a -b foo/bar                   # Archive foo/bar folder to bar.rar as small as possible
 xcompress a -f foo/bar -r 5              # Archive foo/bar folder to bar.rar as fast as possible and add 5% recovery record
-xcompress a -p password foo.wav          # Archive foo.wav to foo.rar with a password
+xcompress a -p password foo.wav          # Archive foo.wav to foo.wav.rar with a password
 xcompress x foo.rar                      # Extract foo.rar into current working directory
 xcompress x foo.tar.gz /tmp/out_folder   # Extract foo.tar.gz into /tmp/out_folder
 xcompress x -p password foo.rar          # Extract foo.rar with a password into current working directory
@@ -34,7 +34,7 @@ Options:
       --zip-path <ZIP_PATH>            Specify the path of your zip executable binary file [default: zip]
       --unzip-path <UNZIP_PATH>        Specify the path of your unzip executable binary file [default: unzip]
       --gzip-path <GZIP_PATH>          Specify the path of your gzip executable binary file [default: gzip]
-      --gnuzip-path <GNUZIP_PATH>      Specify the path of your gunzip executable binary file [default: gunzip]
+      --gunzip-path <GUNZIP_PATH>      Specify the path of your gunzip executable binary file [default: gunzip]
       --pigz-path <PIGZ_PATH>          Specify the path of your pigz executable binary file [default: pigz]
       --bzip2-path <BZIP2_PATH>        Specify the path of your bzip2 executable binary file [default: bzip2]
       --bunzip2-path <BUNZIP2_PATH>    Specify the path of your bunzip2 executable binary file [default: bunzip2]
@@ -48,7 +48,7 @@ Options:
       --pxz-path <PXZ_PATH>            Specify the path of your pxz executable binary file [default: pxz]
       --lzma-path <LZMA_PATH>          Specify the path of your lzma executable binary file [default: lzma]
       --unlzma-path <UNLZMA_PATH>      Specify the path of your unlzma executable binary file [default: unlzma]
-      --7z-path <7z-path>              Specify the path of your 7z executable binary file [default: 7z]
+      --7z-path <7Z_PATH>              Specify the path of your 7z executable binary file [default: 7z]
       --tar-path <TAR_PATH>            Specify the path of your tar executable binary file [default: tar]
       --rar-path <RAR_PATH>            Specify the path of your rar executable binary file [default: rar]
       --unrar-path <UNRAR_PATH>        Specify the path of your unrar executable binary file [default: unrar]

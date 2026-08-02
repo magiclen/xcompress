@@ -561,12 +561,12 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
                     process::exit(output.status.code().unwrap_or(1));
                 }
 
-                if command_args!(&cli_args.executable_paths.gnuzip_path, "-V")
+                if command_args!(&cli_args.executable_paths.gunzip_path, "-V")
                     .execute_check_exit_status_code(0)
                     .is_ok()
                 {
                     let mut command =
-                        command_args!(&cli_args.executable_paths.gnuzip_path, "-c", input_path);
+                        command_args!(&cli_args.executable_paths.gunzip_path, "-c", input_path);
 
                     command.stdout(file);
 
