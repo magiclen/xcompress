@@ -1,11 +1,13 @@
 mod compression;
 mod decompression;
+mod pipeline;
 
 use std::{fs, io, io::Write, num::NonZeroUsize, path::Path, thread};
 
 use anyhow::anyhow;
 pub use compression::*;
 pub use decompression::*;
+use pipeline::*;
 
 #[inline]
 fn try_delete_file<P: AsRef<Path>>(file_path: P) {
