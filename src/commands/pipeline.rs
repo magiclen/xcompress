@@ -1,10 +1,7 @@
 use std::{
     io,
-    path::Path,
     process::{Child, Command, Stdio},
 };
-
-use super::try_delete_file;
 
 /// Run `commands` as a pipeline, connecting the stdout of each command to the stdin of the next one.
 ///
@@ -86,15 +83,6 @@ fn kill_children(children: Vec<Child>) {
         let _ = child.kill();
         let _ = child.wait();
     }
-}
-
-/// Delete `output_path` if the commands did not succeed and return `code` unchanged.
-pub fn cleanup_output<P: AsRef<Path>>(code: Option<i32>, output_path: P) -> Option<i32> {
-    if code != Some(0) {
-        try_delete_file(output_path);
-    }
-
-    code
 }
 
 #[cfg(test)]

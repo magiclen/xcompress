@@ -120,7 +120,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::TarBzip2 => {
             if cpus > 1 {
@@ -202,7 +202,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::TarLz => {
             if cpus > 1
@@ -277,7 +277,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::TarXz => {
             if cpus > 1
@@ -327,7 +327,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::TarLzma => {
             if cpus > 1
@@ -404,7 +404,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::Tar7z => {
             let password = read_password(cli_args.password)?;
@@ -435,7 +435,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::TarZstd => {
             if cpus > 1
@@ -510,7 +510,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::Tar => {
             let mut command = command_args!(
@@ -528,7 +528,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::Z | ArchiveFormat::Gzip => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -583,7 +583,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return publish_on_success(code, staged_file);
+            publish_on_success(code, staged_file)
         },
         ArchiveFormat::Bzip2 => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -658,7 +658,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return publish_on_success(code, staged_file);
+            publish_on_success(code, staged_file)
         },
         ArchiveFormat::Lz => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -713,7 +713,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return publish_on_success(code, staged_file);
+            publish_on_success(code, staged_file)
         },
         ArchiveFormat::Xz => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -768,7 +768,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return publish_on_success(code, staged_file);
+            publish_on_success(code, staged_file)
         },
         ArchiveFormat::Lzma => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -825,7 +825,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return publish_on_success(code, staged_file);
+            publish_on_success(code, staged_file)
         },
         ArchiveFormat::P7z => {
             let password = read_password(cli_args.password)?;
@@ -848,7 +848,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::Zip => {
             let password = read_password(cli_args.password)?;
@@ -869,7 +869,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::Rar => {
             let password = read_password(cli_args.password)?;
@@ -919,7 +919,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            Ok(code)
         },
         ArchiveFormat::Zstd => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -974,7 +974,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return publish_on_success(code, staged_file);
+            publish_on_success(code, staged_file)
         },
     }
 }
