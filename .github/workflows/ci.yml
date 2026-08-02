@@ -101,7 +101,7 @@ jobs:
         os:
           - macos-latest
         toolchain:
-          - 1.85
+          - 1.89
         features:
           -
     name: Test ${{ matrix.toolchain }} on ${{ matrix.os }} (${{ matrix.features }})
