@@ -14,7 +14,9 @@ use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
 use super::{
-    cleanup_output, cpu_count, execute_pipeline, read_password, try_delete_file,
+    cleanup_output, cpu_count, execute_pipeline, read_password,
+    staging::{StagedFile, publish_on_success, publish_optional},
+    try_delete_file,
     validation::{
         file_name, resolve_output_path, validate_compression_paths, validate_unique_file_names,
     },
@@ -372,7 +374,9 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 return Err(anyhow!("{output_path:?} is a directory."));
             }
 
-            fs::remove_file(output_path.as_path())?;
+            if split.is_some() {
+                fs::remove_file(output_path.as_path())?;
+            }
         },
         Err(error) if error.kind() == io::ErrorKind::NotFound => (),
         Err(error) => {
@@ -408,6 +412,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
         | ArchiveFormat::TarLz
         | ArchiveFormat::TarXz
         | ArchiveFormat::TarLzma => {
+            let staged_file = StagedFile::new(output_path.as_path())?;
             let mut command1 = command_args!(&cli_args.executable_paths.tar_path, "-c", "-f", "-");
 
             add_input_paths(&mut command1, &input_paths)?;
@@ -422,17 +427,18 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 _ => unreachable!(),
             };
 
-            command2.stdout(File::create(output_path.as_path())?);
+            command2.stdout(File::create(staged_file.path())?);
 
-            let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)
-                .inspect_err(|_| try_delete_file(output_path.as_path()))?;
+            let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
             // `compress` exits with 2 when the input cannot be made smaller, but its output is still complete
             if format == ArchiveFormat::TarZ && code == Some(2) {
+                staged_file.publish()?;
+
                 return Ok(code);
             }
 
-            return Ok(cleanup_output(code, output_path.as_path()));
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::Z
         | ArchiveFormat::Gzip
@@ -440,6 +446,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
         | ArchiveFormat::Lz
         | ArchiveFormat::Xz
         | ArchiveFormat::Lzma => {
+            let staged_file = StagedFile::new(output_path.as_path())?;
             let input_path = input_paths[0].as_os_str();
 
             let mut command = match format {
@@ -452,32 +459,37 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 _ => unreachable!(),
             };
 
-            command.stdout(File::create(output_path.as_path())?);
+            command.stdout(File::create(staged_file.path())?);
 
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                .inspect_err(|_| try_delete_file(output_path.as_path()))?;
+            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(cleanup_output(code, output_path.as_path()));
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::TarZstd => {
+            let staged_file = StagedFile::new(output_path.as_path())?;
             let mut command1 = command_args!(&cli_args.executable_paths.tar_path, "-c", "-f", "-");
 
             add_input_paths(&mut command1, &input_paths)?;
 
-            let mut command2 = compressor.zstd(stdin, output_path.as_path());
+            let mut command2 = compressor.zstd(stdin, staged_file.path());
 
             let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-            return Ok(code);
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::Zstd => {
-            let mut command = compressor.zstd(input_paths[0].as_os_str(), output_path.as_path());
+            let staged_file = StagedFile::new(output_path.as_path())?;
+            let mut command = compressor.zstd(input_paths[0].as_os_str(), staged_file.path());
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::Tar7z => {
+            let staged_file =
+                if split.is_none() { Some(StagedFile::new(output_path.as_path())?) } else { None };
+            let command_output_path =
+                staged_file.as_ref().map_or(output_path.as_path(), StagedFile::path);
             let mut command1 = command_args!(&cli_args.executable_paths.tar_path, "-c", "-f", "-");
 
             add_input_paths(&mut command1, &input_paths)?;
@@ -502,7 +514,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 command2.arg(format!("-v{kib}k"));
             }
 
-            command2.arg(output_path.as_path());
+            command2.arg(command_output_path);
 
             if cli_args.quiet {
                 command2.stdout(Stdio::null());
@@ -510,9 +522,10 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-            return Ok(code);
+            return publish_optional(code, staged_file);
         },
         ArchiveFormat::Tar => {
+            let staged_file = StagedFile::new(output_path.as_path())?;
             let mut command = command_args!(&cli_args.executable_paths.tar_path, "-c");
 
             if !cli_args.quiet {
@@ -520,15 +533,19 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             }
 
             command.arg("-f");
-            command.arg(output_path.as_path());
+            command.arg(staged_file.path());
 
             add_input_paths(&mut command, &input_paths)?;
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::P7z => {
+            let staged_file =
+                if split.is_none() { Some(StagedFile::new(output_path.as_path())?) } else { None };
+            let command_output_path =
+                staged_file.as_ref().map_or(output_path.as_path(), StagedFile::path);
             let mut command = command_args!(
                 &cli_args.executable_paths.p7z_path,
                 "a",
@@ -548,7 +565,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 command.arg(format!("-v{kib}k"));
             }
 
-            command.arg(output_path.as_path());
+            command.arg(command_output_path);
             command.args(input_paths);
 
             if cli_args.quiet {
@@ -557,9 +574,11 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            return publish_optional(code, staged_file);
         },
         ArchiveFormat::Zip => {
+            let staged_file =
+                if split.is_none() { Some(StagedFile::new(output_path.as_path())?) } else { None };
             // 7z cannot split a zip archive, so a whole one is created first and then split by zip
             let output_tmp_path: Cow<'_, Path> = if split.is_some() {
                 let new_filename =
@@ -577,7 +596,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 Cow::from(output_tmp_path)
             } else {
-                Cow::from(output_path.as_path())
+                Cow::from(staged_file.as_ref().unwrap().path())
             };
 
             let mut command = command_args!(
@@ -604,7 +623,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
             let Some(kib) = split else {
-                return Ok(code);
+                return publish_optional(code, staged_file);
             };
 
             if code != Some(0) {
@@ -637,6 +656,10 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             return Ok(cleanup_output(code, output_path.as_path()));
         },
         ArchiveFormat::Rar => {
+            let staged_file =
+                if split.is_none() { Some(StagedFile::new(output_path.as_path())?) } else { None };
+            let command_output_path =
+                staged_file.as_ref().map_or(output_path.as_path(), StagedFile::path);
             let mut command = command_args!(
                 &cli_args.executable_paths.rar_path,
                 "a",
@@ -662,18 +685,22 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 command.arg(format!("-rr{rr}"));
             }
 
-            command.arg(output_path.as_path());
+            command.arg(command_output_path);
             command.args(input_paths);
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(code);
+            return publish_optional(code, staged_file);
         },
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::OsString;
+
+    use clap::Parser;
+
     use super::*;
 
     #[test]
@@ -693,6 +720,30 @@ mod tests {
         );
 
         assert!(add_input_paths(&mut command, &[PathBuf::from("/")]).is_err());
+    }
+
+    #[test]
+    fn failed_compression_preserves_existing_output() {
+        let directory = tempfile::tempdir().unwrap();
+        let input_path = directory.path().join("input");
+        let output_path = directory.path().join("output.gz");
+        fs::write(input_path.as_path(), b"input").unwrap();
+        fs::write(output_path.as_path(), b"old").unwrap();
+
+        let args = CLIArgs::try_parse_from([
+            OsString::from("xcompress"),
+            OsString::from("--single-thread"),
+            OsString::from("--gzip-path"),
+            OsString::from("/xcompress/missing-gzip"),
+            OsString::from("a"),
+            input_path.into_os_string(),
+            OsString::from("--output-path"),
+            output_path.clone().into_os_string(),
+        ])
+        .unwrap();
+
+        assert!(handle_compression(args).is_err());
+        assert_eq!(b"old", fs::read(output_path).unwrap().as_slice());
     }
 
     #[test]

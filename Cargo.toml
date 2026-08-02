@@ -28,3 +28,4 @@ anyhow = "1"
 byte-unit = "5"
 execute = "0.3"
 path-absolutize = { version = "4", features = ["fixed_workdir"] }
+tempfile = "3"

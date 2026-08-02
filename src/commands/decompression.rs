@@ -5,7 +5,8 @@ use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
 use super::{
-    cleanup_output, cpu_count, execute_pipeline, read_password, try_delete_file,
+    cpu_count, execute_pipeline, read_password,
+    staging::{StagedFile, publish_on_success},
     validation::decompressed_file_path,
 };
 use crate::{
@@ -536,8 +537,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 return Err(anyhow!("{file_path:?} is a directory."));
             }
 
+            let staged_file = StagedFile::new(file_path.as_path())?;
             let file =
-                File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
+                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
 
             if cpus > 1
                 && command_args!(&cli_args.executable_paths.pigz_path, "-V")
@@ -555,10 +557,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             if command_args!(&cli_args.executable_paths.gunzip_path, "-V")
@@ -570,10 +571,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             let mut command =
@@ -581,10 +581,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             command.stdout(file);
 
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(cleanup_output(code, file_path.as_path()));
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::Bzip2 => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -593,8 +592,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 return Err(anyhow!("{file_path:?} is a directory."));
             }
 
+            let staged_file = StagedFile::new(file_path.as_path())?;
             let file =
-                File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
+                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
 
             if cpus > 1 {
                 if command_args!(&cli_args.executable_paths.lbzip2_path, "-V")
@@ -612,10 +612,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                     command.stdout(file);
 
-                    let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                        .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                    let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                    return Ok(cleanup_output(code, file_path.as_path()));
+                    return publish_on_success(code, staged_file);
                 }
 
                 if command_args!(&cli_args.executable_paths.pbzip2_path, "-V")
@@ -632,10 +631,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                     command.stdout(file);
 
-                    let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                        .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                    let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                    return Ok(cleanup_output(code, file_path.as_path()));
+                    return publish_on_success(code, staged_file);
                 }
             }
 
@@ -648,10 +646,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             let mut command =
@@ -659,10 +656,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             command.stdout(file);
 
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(cleanup_output(code, file_path.as_path()));
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::Lz => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -671,8 +667,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 return Err(anyhow!("{file_path:?} is a directory."));
             }
 
+            let staged_file = StagedFile::new(file_path.as_path())?;
             let file =
-                File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
+                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
 
             if cpus > 1
                 && command_args!(&cli_args.executable_paths.plzip_path, "-V")
@@ -690,10 +687,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             if command_args!(&cli_args.executable_paths.lunzip_path, "-V")
@@ -705,10 +701,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             let mut command =
@@ -716,10 +711,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             command.stdout(file);
 
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(cleanup_output(code, file_path.as_path()));
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::Xz => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -728,8 +722,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 return Err(anyhow!("{file_path:?} is a directory."));
             }
 
+            let staged_file = StagedFile::new(file_path.as_path())?;
             let file =
-                File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
+                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
 
             if cpus > 1
                 && command_args!(&cli_args.executable_paths.pxz_path, "-V")
@@ -747,10 +742,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             if command_args!(&cli_args.executable_paths.unxz_path, "-V")
@@ -762,10 +756,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             let mut command =
@@ -773,10 +766,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             command.stdout(file);
 
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(cleanup_output(code, file_path.as_path()));
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::Lzma => {
             let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
@@ -785,8 +777,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 return Err(anyhow!("{file_path:?} is a directory."));
             }
 
+            let staged_file = StagedFile::new(file_path.as_path())?;
             let file =
-                File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
+                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
 
             if cpus > 1
                 && command_args!(&cli_args.executable_paths.pxz_path, "-V")
@@ -806,10 +799,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             if command_args!(&cli_args.executable_paths.unlzma_path, "-V")
@@ -821,10 +813,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             let mut command =
@@ -832,10 +823,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             command.stdout(file);
 
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(cleanup_output(code, file_path.as_path()));
+            return publish_on_success(code, staged_file);
         },
         ArchiveFormat::P7z => {
             let password = read_password(cli_args.password)?;
@@ -938,8 +928,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 return Err(anyhow!("{file_path:?} is a directory."));
             }
 
+            let staged_file = StagedFile::new(file_path.as_path())?;
             let file =
-                File::create(file_path.as_path()).with_context(|| anyhow!("{file_path:?}"))?;
+                File::create(staged_file.path()).with_context(|| anyhow!("{file_path:?}"))?;
 
             if cpus > 1
                 && command_args!(&cli_args.executable_paths.pzstd_path, "-V")
@@ -957,10 +948,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             if command_args!(&cli_args.executable_paths.unzstd_path, "-V")
@@ -972,10 +962,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
                 command.stdout(file);
 
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                    .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-                return Ok(cleanup_output(code, file_path.as_path()));
+                return publish_on_success(code, staged_file);
             }
 
             let mut command =
@@ -983,10 +972,45 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             command.stdout(file);
 
-            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)
-                .inspect_err(|_| try_delete_file(file_path.as_path()))?;
+            let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            return Ok(cleanup_output(code, file_path.as_path()));
+            return publish_on_success(code, staged_file);
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use clap::Parser;
+
+    use super::*;
+
+    #[test]
+    fn failed_decompression_preserves_existing_output() {
+        let directory = tempfile::tempdir().unwrap();
+        let input_path = directory.path().join("input.gz");
+        let output_path = directory.path().join("output");
+        let decompressed_path = output_path.join("input");
+        fs::write(input_path.as_path(), b"invalid gzip").unwrap();
+        fs::create_dir(output_path.as_path()).unwrap();
+        fs::write(decompressed_path.as_path(), b"old").unwrap();
+
+        let args = CLIArgs::try_parse_from([
+            OsString::from("xcompress"),
+            OsString::from("--single-thread"),
+            OsString::from("--gunzip-path"),
+            OsString::from("/xcompress/missing-gunzip"),
+            OsString::from("--gzip-path"),
+            OsString::from("/bin/false"),
+            OsString::from("x"),
+            input_path.into_os_string(),
+            output_path.into_os_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(Some(1), handle_decompression(args).unwrap());
+        assert_eq!(b"old", fs::read(decompressed_path).unwrap().as_slice());
     }
 }
