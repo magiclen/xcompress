@@ -483,11 +483,21 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsString;
+    use std::{ffi::OsString, os::unix::fs::PermissionsExt, path::PathBuf};
 
     use clap::Parser;
 
     use super::*;
+
+    /// Create an executable which always fails, because `false` is not at the same path on every platform.
+    fn failing_executable(directory: &Path) -> PathBuf {
+        let path = directory.join("always-failing");
+
+        fs::write(path.as_path(), b"#!/bin/sh\nexit 1\n").unwrap();
+        fs::set_permissions(path.as_path(), fs::Permissions::from_mode(0o755)).unwrap();
+
+        path
+    }
 
     #[test]
     fn failed_decompression_preserves_existing_output() {
@@ -505,7 +515,7 @@ mod tests {
             OsString::from("--gunzip-path"),
             OsString::from("/xcompress/missing-gunzip"),
             OsString::from("--gzip-path"),
-            OsString::from("/bin/false"),
+            failing_executable(directory.path()).into_os_string(),
             OsString::from("x"),
             input_path.into_os_string(),
             output_path.into_os_string(),

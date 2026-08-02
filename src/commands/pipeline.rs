@@ -117,7 +117,7 @@ mod tests {
     fn downstream_failure() {
         // the upstream command writes more than a pipe can buffer, so it blocks forever unless it sees `EPIPE`
         let mut command1 = Command::new("sh");
-        command1.args(["-c", "head -c 4194304 /dev/zero"]);
+        command1.args(["-c", "dd if=/dev/zero bs=1024 count=4096"]);
 
         let mut command2 = Command::new("sh");
         command2.args(["-c", "exit 1"]);
