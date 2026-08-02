@@ -92,6 +92,21 @@ impl ArchiveFormat {
     pub const fn supports_split(self) -> bool {
         matches!(self, Self::Tar7z | Self::P7z | Self::Zip | Self::Rar)
     }
+
+    /// The extension of the tar-based format to suggest, if this format can only store a single file.
+    #[inline]
+    pub const fn tar_alternative_extension(self) -> Option<&'static str> {
+        match self {
+            Self::Z => Some(".tar.Z"),
+            Self::Gzip => Some(".tar.gz"),
+            Self::Bzip2 => Some(".tar.bz2"),
+            Self::Lz => Some(".tar.lz"),
+            Self::Xz => Some(".tar.xz"),
+            Self::Lzma => Some(".tar.lzma"),
+            Self::Zstd => Some(".tar.zst"),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
