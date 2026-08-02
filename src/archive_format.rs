@@ -37,11 +37,15 @@ impl ArchiveFormat {
                     .is_some_and(|ending| ending.eq_ignore_ascii_case(suffix))
             };
 
-            if ends_with(b".tar.z") {
+            if ends_with(b".tar.z") || ends_with(b".taz") || ends_with(b".tz") {
                 return Ok(ArchiveFormat::TarZ);
             } else if ends_with(b".tar.gz") || ends_with(b".tgz") {
                 return Ok(ArchiveFormat::TarGzip);
-            } else if ends_with(b".tar.bz2") || ends_with(b".tbz2") {
+            } else if ends_with(b".tar.bz2")
+                || ends_with(b".tbz2")
+                || ends_with(b".tbz")
+                || ends_with(b".tb2")
+            {
                 return Ok(ArchiveFormat::TarBzip2);
             } else if ends_with(b".tar.lz") {
                 return Ok(ArchiveFormat::TarLz);
@@ -51,7 +55,7 @@ impl ArchiveFormat {
                 return Ok(ArchiveFormat::TarLzma);
             } else if ends_with(b".tar.7z") || ends_with(b".tar.7z.001") || ends_with(b".t7z") {
                 return Ok(ArchiveFormat::Tar7z);
-            } else if ends_with(b".tar.zst") {
+            } else if ends_with(b".tar.zst") || ends_with(b".tzst") {
                 return Ok(ArchiveFormat::TarZstd);
             } else if ends_with(b".tar") {
                 return Ok(ArchiveFormat::Tar);
@@ -118,14 +122,20 @@ mod tests {
     #[test]
     fn from_file_path() {
         assert_eq!(ArchiveFormat::TarZ, ArchiveFormat::from_file_path("foo.tar.Z").unwrap());
+        assert_eq!(ArchiveFormat::TarZ, ArchiveFormat::from_file_path("foo.taz").unwrap());
+        assert_eq!(ArchiveFormat::TarZ, ArchiveFormat::from_file_path("foo.tz").unwrap());
         assert_eq!(ArchiveFormat::TarGzip, ArchiveFormat::from_file_path("foo.tar.gz").unwrap());
         assert_eq!(ArchiveFormat::TarGzip, ArchiveFormat::from_file_path("foo.tgz").unwrap());
         assert_eq!(ArchiveFormat::TarBzip2, ArchiveFormat::from_file_path("foo.tar.bz2").unwrap());
+        assert_eq!(ArchiveFormat::TarBzip2, ArchiveFormat::from_file_path("foo.tbz2").unwrap());
+        assert_eq!(ArchiveFormat::TarBzip2, ArchiveFormat::from_file_path("foo.tbz").unwrap());
+        assert_eq!(ArchiveFormat::TarBzip2, ArchiveFormat::from_file_path("foo.tb2").unwrap());
         assert_eq!(ArchiveFormat::TarLz, ArchiveFormat::from_file_path("foo.tar.lz").unwrap());
         assert_eq!(ArchiveFormat::TarXz, ArchiveFormat::from_file_path("foo.tar.xz").unwrap());
         assert_eq!(ArchiveFormat::TarLzma, ArchiveFormat::from_file_path("foo.tar.lzma").unwrap());
         assert_eq!(ArchiveFormat::Tar7z, ArchiveFormat::from_file_path("foo.tar.7z.001").unwrap());
         assert_eq!(ArchiveFormat::TarZstd, ArchiveFormat::from_file_path("foo.tar.zst").unwrap());
+        assert_eq!(ArchiveFormat::TarZstd, ArchiveFormat::from_file_path("foo.tzst").unwrap());
         assert_eq!(ArchiveFormat::Tar, ArchiveFormat::from_file_path("foo.tar").unwrap());
 
         assert_eq!(ArchiveFormat::Z, ArchiveFormat::from_file_path("foo.Z").unwrap());

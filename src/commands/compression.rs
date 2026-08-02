@@ -13,10 +13,7 @@ use path_absolutize::{Absolutize, CWD};
 
 use super::{
     cpu_count, execute_pipeline, read_password,
-    staging::{
-        StagedFile, StagedInputs, StagedVolumeSet, VolumeFormat, publish_on_success,
-        publish_volumes_on_success,
-    },
+    staging::{StagedFile, StagedInputs, StagedOutput, VolumeFormat, publish_on_success},
     validation::{
         file_name, resolve_output_path, validate_compression_paths, validate_unique_file_names,
     },
@@ -233,7 +230,8 @@ fn parse_split_size(split: &str) -> anyhow::Result<u32> {
         return Err(anyhow!("The split size is too small."));
     }
 
-    let kib = byte.get_adjusted_unit(Unit::KiB).get_value().round();
+    // rounding down keeps the volumes within the requested size
+    let kib = byte.get_adjusted_unit(Unit::KiB).get_value().floor();
 
     if kib > f64::from(u32::MAX) {
         return Err(anyhow!("The split size is too large."));
@@ -254,6 +252,20 @@ fn add_input_paths(command: &mut Command, input_paths: &[PathBuf]) -> anyhow::Re
     }
 
     Ok(())
+}
+
+/// Publish the output of `compress`, which exits with 2 when the input cannot be made smaller even though its output is still complete.
+fn publish_compress_output(
+    code: Option<i32>,
+    staged_file: StagedFile,
+) -> anyhow::Result<Option<i32>> {
+    if code == Some(2) {
+        staged_file.publish()?;
+
+        return Ok(code);
+    }
+
+    publish_on_success(code, staged_file)
 }
 
 pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
@@ -284,7 +296,14 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
     let output_path = match output_path {
         Some(output_path) => output_path,
-        None => CWD.join(format!("{}.rar", file_name(input_paths[0].as_path())?.to_string_lossy())),
+        None => {
+            // the file name is not necessarily valid UTF-8, so it must not go through a formatted string
+            let mut file_name = file_name(input_paths[0].as_path())?.to_owned();
+
+            file_name.push(".rar");
+
+            CWD.join(file_name)
+        },
     };
 
     let cpus = cpu_count(cli_args.single_thread);
@@ -318,9 +337,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
         ));
     }
 
-    if matches!(format, ArchiveFormat::P7z | ArchiveFormat::Zip) {
-        validate_unique_file_names(&input_paths)?;
-    }
+    // every format stores the inputs by their base names, so duplicates would silently replace each other
+    validate_unique_file_names(&input_paths)?;
 
     let output_path = resolve_output_path(output_path.as_path())?;
 
@@ -387,11 +405,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-            // `compress` exits with 2 when the input cannot be made smaller, but its output is still complete
-            if format == ArchiveFormat::TarZ && code == Some(2) {
-                staged_file.publish()?;
-
-                return Ok(code);
+            if format == ArchiveFormat::TarZ {
+                return publish_compress_output(code, staged_file);
             }
 
             publish_on_success(code, staged_file)
@@ -419,6 +434,10 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
+            if format == ArchiveFormat::Z {
+                return publish_compress_output(code, staged_file);
+            }
+
             publish_on_success(code, staged_file)
         },
         ArchiveFormat::TarZstd => {
@@ -442,16 +461,10 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             publish_on_success(code, staged_file)
         },
         ArchiveFormat::Tar7z => {
-            let (staged_file, staged_volumes) = if split.is_some() {
-                (None, Some(StagedVolumeSet::new(output_path.as_path(), VolumeFormat::SevenZip)?))
-            } else {
-                (Some(StagedFile::new(output_path.as_path())?), None)
-            };
-            let command_output_path = match (&staged_file, &staged_volumes) {
-                (Some(staged_file), None) => staged_file.path(),
-                (None, Some(staged_volumes)) => staged_volumes.path(),
-                _ => unreachable!(),
-            };
+            let staged_output = StagedOutput::new(
+                output_path.as_path(),
+                split.is_some().then_some(VolumeFormat::SevenZip),
+            )?;
             let mut command1 = command_args!(&cli_args.executable_paths.tar_path, "-c", "-f", "-");
 
             add_input_paths(&mut command1, &input_paths)?;
@@ -476,7 +489,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 command2.arg(format!("-v{kib}k"));
             }
 
-            command2.arg(command_output_path);
+            command2.arg(staged_output.path());
 
             if cli_args.quiet {
                 command2.stdout(Stdio::null());
@@ -484,11 +497,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command1, &mut command2], cli_args.quiet)?;
 
-            match (staged_file, staged_volumes) {
-                (Some(staged_file), None) => publish_on_success(code, staged_file),
-                (None, Some(staged_volumes)) => publish_volumes_on_success(code, staged_volumes),
-                _ => unreachable!(),
-            }
+            publish_on_success(code, staged_output)
         },
         ArchiveFormat::Tar => {
             let staged_file = StagedFile::new(output_path.as_path())?;
@@ -511,16 +520,10 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             let input_parent =
                 output_path.parent().ok_or_else(|| anyhow!("{output_path:?} has no parent."))?;
             let staged_inputs = StagedInputs::new(input_parent, &input_paths)?;
-            let (staged_file, staged_volumes) = if split.is_some() {
-                (None, Some(StagedVolumeSet::new(output_path.as_path(), VolumeFormat::SevenZip)?))
-            } else {
-                (Some(StagedFile::new(output_path.as_path())?), None)
-            };
-            let command_output_path = match (&staged_file, &staged_volumes) {
-                (Some(staged_file), None) => staged_file.path(),
-                (None, Some(staged_volumes)) => staged_volumes.path(),
-                _ => unreachable!(),
-            };
+            let staged_output = StagedOutput::new(
+                output_path.as_path(),
+                split.is_some().then_some(VolumeFormat::SevenZip),
+            )?;
             let mut command = command_args!(
                 &cli_args.executable_paths.p7z_path,
                 "a",
@@ -540,7 +543,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 command.arg(format!("-v{kib}k"));
             }
 
-            command.arg(command_output_path);
+            command.arg(staged_output.path());
             command.arg("--");
             command.args(staged_inputs.file_names());
             command.current_dir(staged_inputs.path());
@@ -551,27 +554,22 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            match (staged_file, staged_volumes) {
-                (Some(staged_file), None) => publish_on_success(code, staged_file),
-                (None, Some(staged_volumes)) => publish_volumes_on_success(code, staged_volumes),
-                _ => unreachable!(),
-            }
+            publish_on_success(code, staged_output)
         },
         ArchiveFormat::Zip => {
             let input_parent =
                 output_path.parent().ok_or_else(|| anyhow!("{output_path:?} has no parent."))?;
             let staged_inputs = StagedInputs::new(input_parent, &input_paths)?;
-            let (staged_file, staged_volumes, output_tmp_path) = if split.is_some() {
-                let staged_volumes =
-                    StagedVolumeSet::new(output_path.as_path(), VolumeFormat::Zip)?;
-                let output_tmp_path = staged_volumes.auxiliary_path("unsplit.zip")?;
-
-                (None, Some(staged_volumes), output_tmp_path)
-            } else {
-                let staged_file = StagedFile::new(output_path.as_path())?;
-                let output_tmp_path = staged_file.path().to_owned();
-
-                (Some(staged_file), None, output_tmp_path)
+            let staged_output = StagedOutput::new(
+                output_path.as_path(),
+                split.is_some().then_some(VolumeFormat::Zip),
+            )?;
+            // a split ZIP is made by 7z first and then cut into volumes by zip, which needs its own input file
+            let output_tmp_path = match &staged_output {
+                StagedOutput::File(staged_file) => staged_file.path().to_owned(),
+                StagedOutput::Volumes(staged_volumes) => {
+                    staged_volumes.auxiliary_path("unsplit.zip")?
+                },
             };
 
             let mut command = command_args!(
@@ -600,17 +598,16 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
             let Some(kib) = split else {
-                return publish_on_success(code, staged_file.unwrap());
+                return publish_on_success(code, staged_output);
             };
 
             if code != Some(0) {
                 return Ok(code);
             }
 
+            // zip only copies the entries here, so the compression level does not apply
             let mut command =
                 command_args!(&cli_args.executable_paths.zip_path, "-s", format!("{kib}k"));
-
-            level.apply(&mut command, &["-9"], &["-0"]);
 
             if !password.is_empty() {
                 command.arg("--password");
@@ -623,23 +620,17 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
             command.arg(output_tmp_path.as_path());
             command.arg("--out");
-            command.arg(staged_volumes.as_ref().unwrap().path());
+            command.arg(staged_output.path());
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            publish_volumes_on_success(code, staged_volumes.unwrap())
+            publish_on_success(code, staged_output)
         },
         ArchiveFormat::Rar => {
-            let (staged_file, staged_volumes) = if split.is_some() {
-                (None, Some(StagedVolumeSet::new(output_path.as_path(), VolumeFormat::Rar)?))
-            } else {
-                (Some(StagedFile::new(output_path.as_path())?), None)
-            };
-            let command_output_path = match (&staged_file, &staged_volumes) {
-                (Some(staged_file), None) => staged_file.path(),
-                (None, Some(staged_volumes)) => staged_volumes.path(),
-                _ => unreachable!(),
-            };
+            let staged_output = StagedOutput::new(
+                output_path.as_path(),
+                split.is_some().then_some(VolumeFormat::Rar),
+            )?;
             let mut command = command_args!(
                 &cli_args.executable_paths.rar_path,
                 "a",
@@ -665,16 +656,12 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
                 command.arg(format!("-rr{rr}"));
             }
 
-            command.arg(command_output_path);
+            command.arg(staged_output.path());
             command.args(input_paths);
 
             let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
 
-            match (staged_file, staged_volumes) {
-                (Some(staged_file), None) => publish_on_success(code, staged_file),
-                (None, Some(staged_volumes)) => publish_volumes_on_success(code, staged_volumes),
-                _ => unreachable!(),
-            }
+            publish_on_success(code, staged_output)
         },
     }
 }
@@ -734,7 +721,7 @@ mod tests {
     fn split_size() {
         assert_eq!(64, parse_split_size("64KiB").unwrap());
         assert_eq!(1024, parse_split_size("1MiB").unwrap());
-        assert_eq!(977, parse_split_size("1MB").unwrap());
+        assert_eq!(976, parse_split_size("1MB").unwrap());
 
         assert!(parse_split_size("1KB").is_err());
         assert!(parse_split_size("abc").is_err());

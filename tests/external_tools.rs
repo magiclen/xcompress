@@ -41,9 +41,11 @@ fn extract_archive(input_path: &Path, output_path: &Path) {
 fn single_stream_round_trips() {
     let directory = tempfile::tempdir().unwrap();
     let input_path = directory.path().join("source");
-    fs::write(input_path.as_path(), b"single stream payload").unwrap();
+    // `compress` exits with 2 when its output would be larger, so the payload has to be worth compressing
+    let payload = b"single stream payload".repeat(512);
+    fs::write(input_path.as_path(), payload.as_slice()).unwrap();
 
-    for extension in ["gz", "bz2", "lz", "xz", "lzma", "zst"] {
+    for extension in ["Z", "gz", "bz2", "lz", "xz", "lzma", "zst"] {
         let archive_path = directory.path().join(format!("source.{extension}"));
         let output_path = directory.path().join(format!("output-{extension}"));
         fs::create_dir(output_path.as_path()).unwrap();
@@ -51,10 +53,7 @@ fn single_stream_round_trips() {
         create_archive(&[input_path.as_path()], archive_path.as_path(), None);
         extract_archive(archive_path.as_path(), output_path.as_path());
 
-        assert_eq!(
-            b"single stream payload",
-            fs::read(output_path.join("source")).unwrap().as_slice()
-        );
+        assert_eq!(payload.as_slice(), fs::read(output_path.join("source")).unwrap().as_slice());
     }
 }
 
@@ -66,7 +65,7 @@ fn tar_stream_round_trips() {
     fs::create_dir(input_path.as_path()).unwrap();
     fs::write(input_path.join("file"), b"tar stream payload").unwrap();
 
-    for extension in ["tar.gz", "tar.bz2", "tar.lz", "tar.xz", "tar.lzma", "tar.zst"] {
+    for extension in ["tar.Z", "tar.gz", "tar.bz2", "tar.lz", "tar.xz", "tar.lzma", "tar.zst"] {
         let archive_path = directory.path().join(format!("tree.{extension}"));
         let output_path = directory.path().join(format!("output-{}", extension.replace('.', "-")));
         fs::create_dir(output_path.as_path()).unwrap();
@@ -124,7 +123,7 @@ fn split_volume_sets() {
         data.push((state >> 24) as u8);
     }
 
-    fs::write(input_path.as_path(), data).unwrap();
+    fs::write(input_path.as_path(), data.as_slice()).unwrap();
 
     let seven_zip_path = directory.path().join("archive.7z");
     create_archive(&[input_path.as_path()], seven_zip_path.as_path(), Some("64KiB"));
@@ -145,6 +144,13 @@ fn split_volume_sets() {
     create_archive(&[input_path.as_path()], tar_seven_zip_path.as_path(), Some("64KiB"));
     assert!(directory.path().join("archive.tar.7z.001").is_file());
     assert!(directory.path().join("archive.tar.7z.002").is_file());
+
+    // a split ZIP can only be read back by 7z, so `unzip` alone would not be enough
+    let output_path = directory.path().join("output-zip");
+    fs::create_dir(output_path.as_path()).unwrap();
+    extract_archive(zip_path.as_path(), output_path.as_path());
+
+    assert_eq!(data.as_slice(), fs::read(output_path.join("source")).unwrap().as_slice());
 
     for archive_path in [
         directory.path().join("archive.7z.001"),

@@ -1,7 +1,9 @@
 use std::{
+    ffi::{OsStr, OsString},
     fs,
     fs::File,
     io,
+    path::Path,
     process::{Command, Stdio},
 };
 
@@ -26,7 +28,7 @@ struct Decompressor<'a> {
 }
 
 impl Decompressor<'_> {
-    fn command(&self, format: ArchiveFormat, input: &std::ffi::OsStr) -> Command {
+    fn command(&self, format: ArchiveFormat, input: &OsStr) -> Command {
         match format {
             ArchiveFormat::Z
             | ArchiveFormat::Gzip
@@ -41,7 +43,7 @@ impl Decompressor<'_> {
         }
     }
 
-    fn gzip(&self, input: &std::ffi::OsStr) -> Command {
+    fn gzip(&self, input: &OsStr) -> Command {
         if self.cpus > 1
             && command_args!(&self.executable_paths.pigz_path, "-V")
                 .execute_check_exit_status_code(0)
@@ -67,7 +69,7 @@ impl Decompressor<'_> {
         command_args!(&self.executable_paths.gzip_path, "-d", "-c", input)
     }
 
-    fn bzip2(&self, input: &std::ffi::OsStr) -> Command {
+    fn bzip2(&self, input: &OsStr) -> Command {
         if self.cpus > 1 {
             if command_args!(&self.executable_paths.lbzip2_path, "-V")
                 .execute_check_exit_status_code(0)
@@ -107,7 +109,7 @@ impl Decompressor<'_> {
         command_args!(&self.executable_paths.bzip2_path, "-d", "-c", input)
     }
 
-    fn lzip(&self, input: &std::ffi::OsStr) -> Command {
+    fn lzip(&self, input: &OsStr) -> Command {
         if self.cpus > 1
             && command_args!(&self.executable_paths.plzip_path, "-V")
                 .execute_check_exit_status_code(0)
@@ -133,15 +135,43 @@ impl Decompressor<'_> {
         command_args!(&self.executable_paths.lzip_path, "-d", "-c", input)
     }
 
-    fn xz(&self, input: &std::ffi::OsStr) -> Command {
-        command_args!(&self.executable_paths.unxz_path, "-d", "-c", "-T", self.threads, input)
+    fn xz(&self, input: &OsStr) -> Command {
+        if command_args!(&self.executable_paths.unxz_path, "-V")
+            .execute_check_exit_status_code(0)
+            .is_ok()
+        {
+            return command_args!(
+                &self.executable_paths.unxz_path,
+                "-d",
+                "-c",
+                "-T",
+                self.threads,
+                input
+            );
+        }
+
+        command_args!(&self.executable_paths.xz_path, "-d", "-c", "-T", self.threads, input)
     }
 
-    fn lzma(&self, input: &std::ffi::OsStr) -> Command {
-        command_args!(&self.executable_paths.unlzma_path, "-d", "-c", "-T", self.threads, input)
+    fn lzma(&self, input: &OsStr) -> Command {
+        if command_args!(&self.executable_paths.unlzma_path, "-V")
+            .execute_check_exit_status_code(0)
+            .is_ok()
+        {
+            return command_args!(
+                &self.executable_paths.unlzma_path,
+                "-d",
+                "-c",
+                "-T",
+                self.threads,
+                input
+            );
+        }
+
+        command_args!(&self.executable_paths.lzma_path, "-d", "-c", "-T", self.threads, input)
     }
 
-    fn zstd(&self, input: &std::ffi::OsStr) -> Command {
+    fn zstd(&self, input: &OsStr) -> Command {
         if self.cpus > 1
             && command_args!(&self.executable_paths.pzstd_path, "-V")
                 .execute_check_exit_status_code(0)
@@ -166,6 +196,31 @@ impl Decompressor<'_> {
 
         command_args!(&self.executable_paths.zstd_path, "-d", "-c", input)
     }
+}
+
+/// Build the 7z command which extracts `input_path` into `output_path`.
+///
+/// The password is always passed, even when it is empty, so that an encrypted archive fails instead of waiting for a prompt.
+fn p7z_extract_command(
+    executable_path: &str,
+    threads: &str,
+    password: &str,
+    input_path: &Path,
+    output_path: &Path,
+) -> Command {
+    // the output path is not necessarily valid UTF-8, so it must not go through a formatted string
+    let mut output_argument = OsString::from("-o");
+
+    output_argument.push(output_path);
+
+    let mut command =
+        command_args!(executable_path, "x", "-aoa", format!("-mmt{threads}"), output_argument);
+
+    command.arg(format!("-p{password}"));
+
+    command.arg(input_path);
+
+    command
 }
 
 pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
@@ -332,17 +387,13 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
         ArchiveFormat::P7z => {
             let password = read_password(cli_args.password)?;
 
-            let mut command = command_args!(
+            let mut command = p7z_extract_command(
                 &cli_args.executable_paths.p7z_path,
-                "x",
-                "-aoa",
-                format!("-mmt{threads}"),
-                format!("-o{}", output_path.to_string_lossy())
+                threads,
+                password.as_str(),
+                input_path.as_path(),
+                output_path.as_path(),
             );
-
-            command.arg(format!("-p{password}"));
-
-            command.arg(input_path);
 
             if cli_args.quiet {
                 command.stdout(Stdio::null());
@@ -354,6 +405,28 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
         },
         ArchiveFormat::Zip => {
             let password = read_password(cli_args.password)?;
+
+            // 7z is preferred because `unzip` cannot read a split archive
+            if command_args!(&cli_args.executable_paths.p7z_path, "i")
+                .execute_check_exit_status_code(0)
+                .is_ok()
+            {
+                let mut command = p7z_extract_command(
+                    &cli_args.executable_paths.p7z_path,
+                    threads,
+                    password.as_str(),
+                    input_path.as_path(),
+                    output_path.as_path(),
+                );
+
+                if cli_args.quiet {
+                    command.stdout(Stdio::null());
+                }
+
+                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
+
+                return Ok(code);
+            }
 
             let mut command = command_args!(&cli_args.executable_paths.unzip_path);
 
@@ -375,34 +448,16 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
         },
         ArchiveFormat::Rar => {
             let password = read_password(cli_args.password)?;
-
-            if command_args!(&cli_args.executable_paths.unrar_path, "-?")
+            let executable_path = if command_args!(&cli_args.executable_paths.unrar_path, "-?")
                 .execute_check_exit_status_code(0)
                 .is_ok()
             {
-                let mut command = command_args!(&cli_args.executable_paths.unrar_path, "x", "-o+");
+                &cli_args.executable_paths.unrar_path
+            } else {
+                &cli_args.executable_paths.rar_path
+            };
 
-                command.arg(format!("-mt{threads}"));
-
-                if password.is_empty() {
-                    command.arg("-p-");
-                } else {
-                    command.arg(format!("-p{password}"));
-                }
-
-                if cli_args.quiet {
-                    command.arg("-idq");
-                }
-
-                command.arg(input_path);
-                command.arg(output_path.as_path());
-
-                let code = execute_pipeline(&mut [&mut command], cli_args.quiet)?;
-
-                return Ok(code);
-            }
-
-            let mut command = command_args!(&cli_args.executable_paths.rar_path, "x", "-o+");
+            let mut command = command_args!(executable_path, "x", "-o+");
 
             command.arg(format!("-mt{threads}"));
 

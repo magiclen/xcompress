@@ -39,6 +39,11 @@ pub fn execute_pipeline(commands: &mut [&mut Command], quiet: bool) -> io::Resul
                 return Err(error);
             },
         }
+
+        if index > 0 {
+            // the child owns its own copy of the pipe now, so the read end retained by this command has to be dropped, or an upstream command would never see `EPIPE` after a downstream one exits
+            command.stdin(Stdio::null());
+        }
     }
 
     let mut statuses = Vec::with_capacity(children.len());
@@ -106,6 +111,18 @@ mod tests {
         command2.args(["-c", "cat >/dev/null"]);
 
         assert_eq!(Some(7), execute_pipeline(&mut [&mut command1, &mut command2], true).unwrap());
+    }
+
+    #[test]
+    fn downstream_failure() {
+        // the upstream command writes more than a pipe can buffer, so it blocks forever unless it sees `EPIPE`
+        let mut command1 = Command::new("sh");
+        command1.args(["-c", "head -c 4194304 /dev/zero"]);
+
+        let mut command2 = Command::new("sh");
+        command2.args(["-c", "exit 1"]);
+
+        assert_eq!(Some(1), execute_pipeline(&mut [&mut command1, &mut command2], true).unwrap());
     }
 
     #[test]

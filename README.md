@@ -7,13 +7,6 @@ XCompress is a free file archiver utility on Linux, providing multi-format archi
 
 ## External Tools
 
-XCompress supports the command-line tools provided by the Ubuntu 24.04 LTS official repositories and newer compatible versions. Install the complete supported toolset with:
-
-```bash
-sudo add-apt-repository multiverse
-sudo apt install ncompress zip unzip gzip pigz bzip2 lbzip2 pbzip2 lzip lunzip plzip xz-utils 7zip tar rar unrar zstd
-```
-
 | Package or tool | Minimum version | Executables |
 | --- | ---: | --- |
 | ncompress | 5.0 | `compress` |
@@ -29,13 +22,7 @@ sudo apt install ncompress zip unzip gzip pigz bzip2 lbzip2 pbzip2 lzip lunzip p
 
 Parallel alternatives are used when available and fall back to their standard implementations. Custom executable paths are supported, but versions older than this baseline are not supported.
 
-## Safety Notes
-
-- Existing output files are replaced only after a new archive or decompressed file is complete.
-- Split archives are staged as a complete volume set. Replacing multiple volume files cannot be fully atomic across a power loss, but a controlled publication failure restores the previous set when possible.
-- Archive outputs cannot be the same as an input or be created inside an input path.
-- Archive inputs are stored by base name. Multiple inputs with the same base name are rejected for 7Z and ZIP archives.
-- Passing a password value on the command line can expose it in parent and child process arguments. Use `--password` without a value for hidden terminal input. Passwords read from a terminal or pipe can still appear in child process arguments because of external tool limitations.
+ZIP archives are extracted with 7-Zip and fall back to `unzip`. Only 7-Zip can read split ZIP archives and AES encrypted entries.
 
 ## Help
 

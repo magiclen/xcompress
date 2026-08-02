@@ -333,23 +333,58 @@ impl StagedFile {
     }
 }
 
-pub fn publish_on_success(
-    code: Option<i32>,
-    staged_file: StagedFile,
-) -> anyhow::Result<Option<i32>> {
-    if code == Some(0) {
-        staged_file.publish()?;
-    }
-
-    Ok(code)
+/// A staged output, which is a set of volumes when the archive is split and a single file otherwise.
+pub enum StagedOutput {
+    File(StagedFile),
+    Volumes(StagedVolumeSet),
 }
 
-pub fn publish_volumes_on_success(
+impl From<StagedFile> for StagedOutput {
+    #[inline]
+    fn from(staged_file: StagedFile) -> Self {
+        Self::File(staged_file)
+    }
+}
+
+impl From<StagedVolumeSet> for StagedOutput {
+    #[inline]
+    fn from(staged_volumes: StagedVolumeSet) -> Self {
+        Self::Volumes(staged_volumes)
+    }
+}
+
+impl StagedOutput {
+    pub fn new(final_path: &Path, volume_format: Option<VolumeFormat>) -> anyhow::Result<Self> {
+        match volume_format {
+            Some(volume_format) => {
+                Ok(Self::Volumes(StagedVolumeSet::new(final_path, volume_format)?))
+            },
+            None => Ok(Self::File(StagedFile::new(final_path)?)),
+        }
+    }
+
+    #[inline]
+    pub fn path(&self) -> &Path {
+        match self {
+            Self::File(staged_file) => staged_file.path(),
+            Self::Volumes(staged_volumes) => staged_volumes.path(),
+        }
+    }
+
+    fn publish(self) -> anyhow::Result<()> {
+        match self {
+            Self::File(staged_file) => staged_file.publish(),
+            Self::Volumes(staged_volumes) => staged_volumes.publish(),
+        }
+    }
+}
+
+pub fn publish_on_success<T: Into<StagedOutput>>(
     code: Option<i32>,
-    staged_volumes: StagedVolumeSet,
+    staged_output: T,
 ) -> anyhow::Result<Option<i32>> {
     if code == Some(0) {
-        staged_volumes.publish()?;
+        staged_output.into().publish()?;
     }
 
     Ok(code)
