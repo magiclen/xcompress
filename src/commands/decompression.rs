@@ -4,7 +4,10 @@ use anyhow::{Context, anyhow};
 use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
-use super::{cleanup_output, cpu_count, execute_pipeline, read_password, try_delete_file};
+use super::{
+    cleanup_output, cpu_count, execute_pipeline, read_password, try_delete_file,
+    validation::decompressed_file_path,
+};
 use crate::{
     archive_format::ArchiveFormat,
     cli::{CLIArgs, CLICommands},
@@ -527,7 +530,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             return Ok(code);
         },
         ArchiveFormat::Z | ArchiveFormat::Gzip => {
-            let file_path = output_path.join(input_path.file_stem().unwrap());
+            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
 
             if file_path.is_dir() {
                 return Err(anyhow!("{file_path:?} is a directory."));
@@ -584,7 +587,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             return Ok(cleanup_output(code, file_path.as_path()));
         },
         ArchiveFormat::Bzip2 => {
-            let file_path = output_path.join(input_path.file_stem().unwrap());
+            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
 
             if file_path.is_dir() {
                 return Err(anyhow!("{file_path:?} is a directory."));
@@ -662,7 +665,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             return Ok(cleanup_output(code, file_path.as_path()));
         },
         ArchiveFormat::Lz => {
-            let file_path = output_path.join(input_path.file_stem().unwrap());
+            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
 
             if file_path.is_dir() {
                 return Err(anyhow!("{file_path:?} is a directory."));
@@ -719,7 +722,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             return Ok(cleanup_output(code, file_path.as_path()));
         },
         ArchiveFormat::Xz => {
-            let file_path = output_path.join(input_path.file_stem().unwrap());
+            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
 
             if file_path.is_dir() {
                 return Err(anyhow!("{file_path:?} is a directory."));
@@ -776,7 +779,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             return Ok(cleanup_output(code, file_path.as_path()));
         },
         ArchiveFormat::Lzma => {
-            let file_path = output_path.join(input_path.file_stem().unwrap());
+            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
 
             if file_path.is_dir() {
                 return Err(anyhow!("{file_path:?} is a directory."));
@@ -929,7 +932,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             return Ok(code);
         },
         ArchiveFormat::Zstd => {
-            let file_path = output_path.join(input_path.file_stem().unwrap());
+            let file_path = decompressed_file_path(output_path.as_path(), input_path.as_path())?;
 
             if file_path.is_dir() {
                 return Err(anyhow!("{file_path:?} is a directory."));

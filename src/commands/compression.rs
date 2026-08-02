@@ -13,7 +13,12 @@ use byte_unit::{Byte, Unit};
 use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
-use super::{cleanup_output, cpu_count, execute_pipeline, read_password, try_delete_file};
+use super::{
+    cleanup_output, cpu_count, execute_pipeline, read_password, try_delete_file,
+    validation::{
+        file_name, resolve_output_path, validate_compression_paths, validate_unique_file_names,
+    },
+};
 use crate::{
     archive_format::ArchiveFormat,
     cli::{CLIArgs, CLICommands, ExecutablePaths},
@@ -275,14 +280,15 @@ fn parse_split_size(split: &str) -> anyhow::Result<u32> {
     Ok(kib as u32)
 }
 
-/// Add each input path as a `-C <parent> <name>` pair, so the base directory is excluded from the archive.
+/// Add each input path from its parent directory, so the base directory is excluded from the archive.
 fn add_input_paths(command: &mut Command, input_paths: &[PathBuf]) -> anyhow::Result<()> {
     for input_path in input_paths {
         let input_path = input_path.absolutize()?;
 
         command.arg("-C");
-        command.arg(input_path.parent().unwrap());
-        command.arg(input_path.file_name().unwrap());
+        command.arg(input_path.parent().ok_or_else(|| anyhow!("{input_path:?} has no parent."))?);
+        command.arg("--add-file");
+        command.arg(file_name(input_path.as_ref())?);
     }
 
     Ok(())
@@ -316,7 +322,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 
     let output_path = match output_path {
         Some(output_path) => output_path,
-        None => CWD.join(format!("{}.rar", input_paths[0].file_name().unwrap().to_string_lossy())),
+        None => CWD.join(format!("{}.rar", file_name(input_paths[0].as_path())?.to_string_lossy())),
     };
 
     let cpus = cpu_count(cli_args.single_thread);
@@ -350,26 +356,29 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
         ));
     }
 
+    if matches!(format, ArchiveFormat::P7z | ArchiveFormat::Zip) {
+        validate_unique_file_names(&input_paths)?;
+    }
+
+    let output_path = resolve_output_path(output_path.as_path())?;
+
+    validate_compression_paths(output_path.as_path(), &input_paths)?;
+
     let password = read_password(cli_args.password)?;
 
-    let output_path = match output_path.canonicalize() {
-        Ok(output_path) => {
-            if output_path.is_dir() {
+    match output_path.metadata() {
+        Ok(metadata) => {
+            if metadata.is_dir() {
                 return Err(anyhow!("{output_path:?} is a directory."));
             }
 
             fs::remove_file(output_path.as_path())?;
-
-            output_path
         },
-        Err(error) if error.kind() == io::ErrorKind::NotFound => match output_path.absolutize()? {
-            Cow::Borrowed(_) => output_path,
-            Cow::Owned(path) => path,
-        },
+        Err(error) if error.kind() == io::ErrorKind::NotFound => (),
         Err(error) => {
             return Err(error.into());
         },
-    };
+    }
 
     let level = if best_compression {
         CompressionLevel::Best
@@ -552,7 +561,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
         },
         ArchiveFormat::Zip => {
             // 7z cannot split a zip archive, so a whole one is created first and then split by zip
-            let output_tmp_path = if split.is_some() {
+            let output_tmp_path: Cow<'_, Path> = if split.is_some() {
                 let new_filename =
                     format!("{}.tmp.zip", output_path.file_stem().unwrap().to_string_lossy());
 
@@ -666,6 +675,25 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tar_input_paths() {
+        let mut command = Command::new("tar");
+
+        add_input_paths(&mut command, &[PathBuf::from("/tmp/-danger")]).unwrap();
+
+        assert_eq!(
+            vec![
+                OsStr::new("-C"),
+                OsStr::new("/tmp"),
+                OsStr::new("--add-file"),
+                OsStr::new("-danger")
+            ],
+            command.get_args().collect::<Vec<_>>()
+        );
+
+        assert!(add_input_paths(&mut command, &[PathBuf::from("/")]).is_err());
+    }
 
     #[test]
     fn split_size() {

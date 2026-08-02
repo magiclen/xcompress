@@ -1,6 +1,7 @@
 mod compression;
 mod decompression;
 mod pipeline;
+mod validation;
 
 use std::{fs, io, io::Write, num::NonZeroUsize, path::Path, thread};
 
