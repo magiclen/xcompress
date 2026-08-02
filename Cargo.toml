@@ -23,10 +23,10 @@ clap = { version = "4", features = ["derive"] }
 concat-with = "0.2"
 terminal_size = "0.4"
 
-anyhow = "1"
+anyhow = "1.0.42"
 
 byte-unit = "5"
 execute = "0.3"
 path-absolutize = { version = "4", features = ["fixed_workdir"] }
-tempfile = "3"
+tempfile = "3.20"
 rpassword = "7"
