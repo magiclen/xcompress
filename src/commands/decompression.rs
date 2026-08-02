@@ -37,14 +37,9 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
         let cpus = if cli_args.single_thread { 1 } else { num_cpus::get() };
 
-        let format = ArchiveFormat::get_archive_format_from_file_path(input_path.as_path())?;
+        let format = ArchiveFormat::from_file_path(input_path.as_path())?;
 
-        if cli_args.password.is_some()
-            && !matches!(
-                format,
-                ArchiveFormat::Tar7z | ArchiveFormat::P7z | ArchiveFormat::Zip | ArchiveFormat::Rar
-            )
-        {
+        if cli_args.password.is_some() && !format.supports_password() {
             return Err(anyhow!("`password` only supports 7Z, ZIP and RAR."));
         }
 

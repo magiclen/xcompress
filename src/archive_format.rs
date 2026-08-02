@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::anyhow;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ArchiveFormat {
     Z,
     Zip,
@@ -26,9 +26,7 @@ pub enum ArchiveFormat {
 }
 
 impl ArchiveFormat {
-    pub fn get_archive_format_from_file_path<P: AsRef<Path>>(
-        file_path: P,
-    ) -> anyhow::Result<ArchiveFormat> {
+    pub fn from_file_path<P: AsRef<Path>>(file_path: P) -> anyhow::Result<Self> {
         let file_path = file_path.as_ref();
 
         if let Some(file_name) = file_path.file_name()
@@ -36,7 +34,7 @@ impl ArchiveFormat {
         {
             let file_name = file_name.to_ascii_lowercase();
 
-            if file_name.ends_with("tar.z") {
+            if file_name.ends_with(".tar.z") {
                 return Ok(ArchiveFormat::TarZ);
             } else if file_name.ends_with(".tar.gz") || file_name.ends_with(".tgz") {
                 return Ok(ArchiveFormat::TarGzip);
@@ -81,5 +79,56 @@ impl ArchiveFormat {
         }
 
         Err(anyhow!("Unknown archive format."))
+    }
+
+    /// Whether the `password` option can be used with this format.
+    #[inline]
+    pub const fn supports_password(self) -> bool {
+        matches!(self, Self::Tar7z | Self::P7z | Self::Zip | Self::Rar)
+    }
+
+    /// Whether the `split` option can be used with this format.
+    #[inline]
+    pub const fn supports_split(self) -> bool {
+        matches!(self, Self::Tar7z | Self::P7z | Self::Zip | Self::Rar)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_file_path() {
+        assert_eq!(ArchiveFormat::TarZ, ArchiveFormat::from_file_path("foo.tar.Z").unwrap());
+        assert_eq!(ArchiveFormat::TarGzip, ArchiveFormat::from_file_path("foo.tar.gz").unwrap());
+        assert_eq!(ArchiveFormat::TarGzip, ArchiveFormat::from_file_path("foo.tgz").unwrap());
+        assert_eq!(ArchiveFormat::TarBzip2, ArchiveFormat::from_file_path("foo.tar.bz2").unwrap());
+        assert_eq!(ArchiveFormat::TarLz, ArchiveFormat::from_file_path("foo.tar.lz").unwrap());
+        assert_eq!(ArchiveFormat::TarXz, ArchiveFormat::from_file_path("foo.tar.xz").unwrap());
+        assert_eq!(ArchiveFormat::TarLzma, ArchiveFormat::from_file_path("foo.tar.lzma").unwrap());
+        assert_eq!(ArchiveFormat::Tar7z, ArchiveFormat::from_file_path("foo.tar.7z.001").unwrap());
+        assert_eq!(ArchiveFormat::TarZstd, ArchiveFormat::from_file_path("foo.tar.zst").unwrap());
+        assert_eq!(ArchiveFormat::Tar, ArchiveFormat::from_file_path("foo.tar").unwrap());
+
+        assert_eq!(ArchiveFormat::Z, ArchiveFormat::from_file_path("foo.Z").unwrap());
+        assert_eq!(ArchiveFormat::Zip, ArchiveFormat::from_file_path("foo.zip").unwrap());
+        assert_eq!(ArchiveFormat::Gzip, ArchiveFormat::from_file_path("foo.gz").unwrap());
+        assert_eq!(ArchiveFormat::Bzip2, ArchiveFormat::from_file_path("foo.bz2").unwrap());
+        assert_eq!(ArchiveFormat::Lz, ArchiveFormat::from_file_path("foo.lz").unwrap());
+        assert_eq!(ArchiveFormat::Xz, ArchiveFormat::from_file_path("foo.xz").unwrap());
+        assert_eq!(ArchiveFormat::Lzma, ArchiveFormat::from_file_path("foo.lzma").unwrap());
+        assert_eq!(ArchiveFormat::P7z, ArchiveFormat::from_file_path("foo.7z").unwrap());
+        assert_eq!(ArchiveFormat::P7z, ArchiveFormat::from_file_path("foo.7z.001").unwrap());
+        assert_eq!(ArchiveFormat::Rar, ArchiveFormat::from_file_path("foo.rar").unwrap());
+        assert_eq!(ArchiveFormat::Zstd, ArchiveFormat::from_file_path("foo.zst").unwrap());
+
+        // the `tar` here is a part of the file name instead of an extension
+        assert_eq!(ArchiveFormat::Z, ArchiveFormat::from_file_path("footar.z").unwrap());
+
+        assert_eq!(ArchiveFormat::Rar, ArchiveFormat::from_file_path("/path/to/foo.rar").unwrap());
+
+        assert!(ArchiveFormat::from_file_path("foo.unknown").is_err());
+        assert!(ArchiveFormat::from_file_path("foo").is_err());
     }
 }
