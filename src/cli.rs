@@ -74,8 +74,9 @@ pub struct CLIArgs {
     #[arg(short, long)]
     #[arg(global = true)]
     #[arg(num_args = 0..=1, default_missing_value = "")]
-    #[arg(help = "Set password for your archive file. (Only supports 7Z, ZIP and RAR) Set an \
-                  empty string to read a password from stdin")]
+    #[arg(help = "Set password for your archive file. (Only supports 7Z, ZIP and RAR) Password \
+                  values can be visible in process arguments. Set an empty string to read a \
+                  password from stdin")]
     pub password: Option<String>,
 
     #[command(flatten)]

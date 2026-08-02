@@ -4,7 +4,7 @@ mod pipeline;
 mod staging;
 mod validation;
 
-use std::{io, io::Write, num::NonZeroUsize, thread};
+use std::{io, io::IsTerminal, num::NonZeroUsize, thread};
 
 use anyhow::anyhow;
 pub use compression::*;
@@ -20,8 +20,9 @@ fn read_password(password: Option<String>) -> anyhow::Result<String> {
     match password {
         Some(password) => {
             if password.is_empty() {
-                print!("Password (visible): ");
-                io::stdout().flush()?;
+                if io::stdin().is_terminal() {
+                    return Ok(rpassword::prompt_password("Password: ")?);
+                }
 
                 let mut password = String::new();
 
@@ -29,10 +30,7 @@ fn read_password(password: Option<String>) -> anyhow::Result<String> {
                     return Err(anyhow!("Stdin is closed."));
                 }
 
-                // only the line terminator can be trimmed, because a password may end with spaces
-                let length = password.trim_end_matches(['\n', '\r']).len();
-
-                password.truncate(length);
+                trim_line_ending(&mut password);
 
                 Ok(password)
             } else {
@@ -40,5 +38,25 @@ fn read_password(password: Option<String>) -> anyhow::Result<String> {
             }
         },
         None => Ok(String::new()),
+    }
+}
+
+fn trim_line_ending(line: &mut String) {
+    let length = line.trim_end_matches(['\n', '\r']).len();
+
+    line.truncate(length);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn line_ending_is_removed_from_password() {
+        let mut password = String::from("password  \r\n");
+
+        trim_line_ending(&mut password);
+
+        assert_eq!("password  ", password);
     }
 }
