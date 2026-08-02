@@ -1,5 +1,7 @@
 use std::{
+    ffi::{OsStr, OsString},
     fs,
+    os::unix::fs::symlink,
     path::{Path, PathBuf},
 };
 
@@ -7,6 +9,45 @@ use anyhow::{Context, anyhow};
 use tempfile::{Builder, TempDir};
 
 use super::validation::file_name;
+
+pub struct StagedInputs {
+    _directory: TempDir,
+    path:       PathBuf,
+    file_names: Vec<OsString>,
+}
+
+impl StagedInputs {
+    pub fn new(parent: &Path, input_paths: &[PathBuf]) -> anyhow::Result<Self> {
+        let directory = Builder::new()
+            .prefix(".xcompress-input-")
+            .tempdir_in(parent)
+            .with_context(|| anyhow!("{parent:?}"))?;
+        let path = directory.path().to_owned();
+        let mut file_names = Vec::with_capacity(input_paths.len());
+
+        for input_path in input_paths {
+            let file_name = file_name(input_path)?;
+            symlink(input_path, path.join(file_name)).with_context(|| anyhow!("{input_path:?}"))?;
+            file_names.push(file_name.to_owned());
+        }
+
+        Ok(Self {
+            _directory: directory,
+            path,
+            file_names,
+        })
+    }
+
+    #[inline]
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
+    }
+
+    #[inline]
+    pub fn file_names(&self) -> impl Iterator<Item = &OsStr> {
+        self.file_names.iter().map(OsString::as_os_str)
+    }
+}
 
 pub struct StagedFile {
     _directory:  TempDir,
@@ -74,6 +115,27 @@ pub fn publish_optional(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn staged_inputs_use_file_names() {
+        let directory = tempfile::tempdir().unwrap();
+        let first = directory.path().join("first/file-a");
+        let second = directory.path().join("second/file-b");
+        fs::create_dir_all(first.parent().unwrap()).unwrap();
+        fs::create_dir_all(second.parent().unwrap()).unwrap();
+        fs::write(first.as_path(), b"first").unwrap();
+        fs::write(second.as_path(), b"second").unwrap();
+
+        let staged_inputs =
+            StagedInputs::new(directory.path(), &[first.clone(), second.clone()]).unwrap();
+
+        assert_eq!(
+            vec![OsStr::new("file-a"), OsStr::new("file-b")],
+            staged_inputs.file_names().collect::<Vec<_>>()
+        );
+        assert_eq!(first, fs::read_link(staged_inputs.path().join("file-a")).unwrap());
+        assert_eq!(second, fs::read_link(staged_inputs.path().join("file-b")).unwrap());
+    }
 
     #[test]
     fn publish_replaces_existing_file() {

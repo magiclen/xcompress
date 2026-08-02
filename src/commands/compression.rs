@@ -15,7 +15,7 @@ use path_absolutize::{Absolutize, CWD};
 
 use super::{
     cleanup_output, cpu_count, execute_pipeline, read_password,
-    staging::{StagedFile, publish_on_success, publish_optional},
+    staging::{StagedFile, StagedInputs, publish_on_success, publish_optional},
     try_delete_file,
     validation::{
         file_name, resolve_output_path, validate_compression_paths, validate_unique_file_names,
@@ -542,6 +542,9 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             return publish_on_success(code, staged_file);
         },
         ArchiveFormat::P7z => {
+            let input_parent =
+                output_path.parent().ok_or_else(|| anyhow!("{output_path:?} has no parent."))?;
+            let staged_inputs = StagedInputs::new(input_parent, &input_paths)?;
             let staged_file =
                 if split.is_none() { Some(StagedFile::new(output_path.as_path())?) } else { None };
             let command_output_path =
@@ -566,7 +569,9 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             }
 
             command.arg(command_output_path);
-            command.args(input_paths);
+            command.arg("--");
+            command.args(staged_inputs.file_names());
+            command.current_dir(staged_inputs.path());
 
             if cli_args.quiet {
                 command.stdout(Stdio::null());
@@ -577,6 +582,9 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             return publish_optional(code, staged_file);
         },
         ArchiveFormat::Zip => {
+            let input_parent =
+                output_path.parent().ok_or_else(|| anyhow!("{output_path:?} has no parent."))?;
+            let staged_inputs = StagedInputs::new(input_parent, &input_paths)?;
             let staged_file =
                 if split.is_none() { Some(StagedFile::new(output_path.as_path())?) } else { None };
             // 7z cannot split a zip archive, so a whole one is created first and then split by zip
@@ -614,7 +622,9 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<Option<i32>> {
             }
 
             command.arg(output_tmp_path.as_ref());
-            command.args(input_paths);
+            command.arg("--");
+            command.args(staged_inputs.file_names());
+            command.current_dir(staged_inputs.path());
 
             if cli_args.quiet {
                 command.stdout(Stdio::null());
