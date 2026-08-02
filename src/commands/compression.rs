@@ -5,7 +5,7 @@ use byte_unit::{Byte, Unit};
 use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
-use super::{read_password, try_delete_file};
+use super::{cpu_count, read_password, try_delete_file};
 use crate::{
     archive_format::ArchiveFormat,
     cli::{CLIArgs, CLICommands},
@@ -50,7 +50,7 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
             },
         };
 
-        let cpus = if cli_args.single_thread { 1 } else { num_cpus::get() };
+        let cpus = cpu_count(cli_args.single_thread);
 
         let format = ArchiveFormat::from_file_path(output_path.as_path())?;
 

@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
-use super::read_password;
+use super::{cpu_count, read_password};
 use crate::{
     archive_format::ArchiveFormat,
     cli::{CLIArgs, CLICommands},
@@ -35,7 +35,7 @@ pub fn handle_decompression(cli_args: CLIArgs) -> anyhow::Result<()> {
             CWD.as_path()
         };
 
-        let cpus = if cli_args.single_thread { 1 } else { num_cpus::get() };
+        let cpus = cpu_count(cli_args.single_thread);
 
         let format = ArchiveFormat::from_file_path(input_path.as_path())?;
 

@@ -27,6 +27,4 @@ anyhow = "1"
 
 byte-unit = "5"
 execute = "0.3"
-num_cpus = "1"
-scanner-rust = "3"
 path-absolutize = { version = "4", features = ["fixed_workdir"] }

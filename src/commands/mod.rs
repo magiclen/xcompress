@@ -1,17 +1,22 @@
 mod compression;
 mod decompression;
 
-use std::{fs, io, io::Write, path::Path};
+use std::{fs, io, io::Write, num::NonZeroUsize, path::Path, thread};
 
 use anyhow::anyhow;
 pub use compression::*;
 pub use decompression::*;
-use scanner_rust::Scanner;
 
 #[inline]
 fn try_delete_file<P: AsRef<Path>>(file_path: P) {
-    if fs::remove_file(file_path).is_err() {}
+    let _ = fs::remove_file(file_path);
 }
+
+#[inline]
+fn cpu_count(single_thread: bool) -> usize {
+    if single_thread { 1 } else { thread::available_parallelism().map_or(1, NonZeroUsize::get) }
+}
+
 fn read_password(password: Option<String>) -> anyhow::Result<String> {
     match password {
         Some(password) => {
@@ -19,9 +24,18 @@ fn read_password(password: Option<String>) -> anyhow::Result<String> {
                 print!("Password (visible): ");
                 io::stdout().flush()?;
 
-                let mut sc: Scanner<_, 32> = Scanner::new2(io::stdin());
+                let mut password = String::new();
 
-                sc.next_line()?.ok_or_else(|| anyhow!("Stdin is closed."))
+                if io::stdin().read_line(&mut password)? == 0 {
+                    return Err(anyhow!("Stdin is closed."));
+                }
+
+                // only the line terminator can be trimmed, because a password may end with spaces
+                let length = password.trim_end_matches(['\n', '\r']).len();
+
+                password.truncate(length);
+
+                Ok(password)
             } else {
                 Ok(password)
             }
