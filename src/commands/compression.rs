@@ -1,8 +1,8 @@
 use std::{borrow::Cow, fs, fs::File, io, process};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use byte_unit::{Byte, Unit};
-use execute::{command_args, Execute};
+use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
 use super::{read_password, try_delete_file};
@@ -139,9 +139,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                         let output = command1
                             .execute_multiple_output(&mut [&mut command2])
-                            .map_err(|err| {
+                            .inspect_err(|_| {
                                 try_delete_file(output_path.as_path());
-                                err
                             })?;
 
                         match output.status.code() {
@@ -190,9 +189,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
-                                .map_err(|err| {
+                                .inspect_err(|_| {
                                     try_delete_file(output_path.as_path());
-                                    err
                                 })?;
 
                             match output.status.code() {
@@ -231,9 +229,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                         let output = command1
                             .execute_multiple_output(&mut [&mut command2])
-                            .map_err(|err| {
+                            .inspect_err(|_| {
                                 try_delete_file(output_path.as_path());
-                                err
                             })?;
 
                         match output.status.code() {
@@ -283,9 +280,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                                 let output = command1
                                     .execute_multiple_output(&mut [&mut command2])
-                                    .map_err(|err| {
+                                    .inspect_err(|_| {
                                         try_delete_file(output_path.as_path());
-                                        err
                                     })?;
 
                                 match output.status.code() {
@@ -333,9 +329,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                                 let output = command1
                                     .execute_multiple_output(&mut [&mut command2])
-                                    .map_err(|err| {
+                                    .inspect_err(|_| {
                                         try_delete_file(output_path.as_path());
-                                        err
                                     })?;
 
                                 match output.status.code() {
@@ -375,9 +370,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                         let output = command1
                             .execute_multiple_output(&mut [&mut command2])
-                            .map_err(|err| {
+                            .inspect_err(|_| {
                                 try_delete_file(output_path.as_path());
-                                err
                             })?;
 
                         match output.status.code() {
@@ -427,9 +421,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
-                                .map_err(|err| {
+                                .inspect_err(|_| {
                                     try_delete_file(output_path.as_path());
-                                    err
                                 })?;
 
                             match output.status.code() {
@@ -468,9 +461,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                         let output = command1
                             .execute_multiple_output(&mut [&mut command2])
-                            .map_err(|err| {
+                            .inspect_err(|_| {
                                 try_delete_file(output_path.as_path());
-                                err
                             })?;
 
                         match output.status.code() {
@@ -520,9 +512,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
-                                .map_err(|err| {
+                                .inspect_err(|_| {
                                     try_delete_file(output_path.as_path());
-                                    err
                                 })?;
 
                             match output.status.code() {
@@ -561,9 +552,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                         let output = command1
                             .execute_multiple_output(&mut [&mut command2])
-                            .map_err(|err| {
+                            .inspect_err(|_| {
                                 try_delete_file(output_path.as_path());
-                                err
                             })?;
 
                         match output.status.code() {
@@ -615,9 +605,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                             let output = command1
                                 .execute_multiple_output(&mut [&mut command2])
-                                .map_err(|err| {
+                                .inspect_err(|_| {
                                     try_delete_file(output_path.as_path());
-                                    err
                                 })?;
 
                             match output.status.code() {
@@ -656,9 +645,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                         let output = command1
                             .execute_multiple_output(&mut [&mut command2])
-                            .map_err(|err| {
+                            .inspect_err(|_| {
                                 try_delete_file(output_path.as_path());
-                                err
                             })?;
 
                         match output.status.code() {
@@ -829,9 +817,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 command.stdout(File::create(output_path.as_path())?);
 
-                let output = command.execute_output().map_err(|err| {
+                let output = command.execute_output().inspect_err(|_| {
                     try_delete_file(output_path.as_path());
-                    err
                 })?;
 
                 match output.status.code() {
@@ -887,9 +874,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                     command.stdout(File::create(output_path.as_path())?);
 
-                    let output = command.execute_output().map_err(|err| {
+                    let output = command.execute_output().inspect_err(|_| {
                         try_delete_file(output_path.as_path());
-                        err
                     })?;
 
                     match output.status.code() {
@@ -926,9 +912,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 command.stdout(File::create(output_path.as_path())?);
 
-                let output = command.execute_output().map_err(|err| {
+                let output = command.execute_output().inspect_err(|_| {
                     try_delete_file(output_path.as_path());
-                    err
                 })?;
 
                 match output.status.code() {
@@ -985,9 +970,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                         command.stdout(File::create(output_path.as_path())?);
 
-                        let output = command.execute_output().map_err(|err| {
+                        let output = command.execute_output().inspect_err(|_| {
                             try_delete_file(output_path.as_path());
-                            err
                         })?;
 
                         match output.status.code() {
@@ -1033,9 +1017,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                         command.stdout(File::create(output_path.as_path())?);
 
-                        let output = command.execute_output().map_err(|err| {
+                        let output = command.execute_output().inspect_err(|_| {
                             try_delete_file(output_path.as_path());
-                            err
                         })?;
 
                         match output.status.code() {
@@ -1073,9 +1056,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 command.stdout(File::create(output_path.as_path())?);
 
-                let output = command.execute_output().map_err(|err| {
+                let output = command.execute_output().inspect_err(|_| {
                     try_delete_file(output_path.as_path());
-                    err
                 })?;
 
                 match output.status.code() {
@@ -1132,9 +1114,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                     command.stdout(File::create(output_path.as_path())?);
 
-                    let output = command.execute_output().map_err(|err| {
+                    let output = command.execute_output().inspect_err(|_| {
                         try_delete_file(output_path.as_path());
-                        err
                     })?;
 
                     match output.status.code() {
@@ -1171,9 +1152,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 command.stdout(File::create(output_path.as_path())?);
 
-                let output = command.execute_output().map_err(|err| {
+                let output = command.execute_output().inspect_err(|_| {
                     try_delete_file(output_path.as_path());
-                    err
                 })?;
 
                 match output.status.code() {
@@ -1230,9 +1210,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                     command.stdout(File::create(output_path.as_path())?);
 
-                    let output = command.execute_output().map_err(|err| {
+                    let output = command.execute_output().inspect_err(|_| {
                         try_delete_file(output_path.as_path());
-                        err
                     })?;
 
                     match output.status.code() {
@@ -1269,9 +1248,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 command.stdout(File::create(output_path.as_path())?);
 
-                let output = command.execute_output().map_err(|err| {
+                let output = command.execute_output().inspect_err(|_| {
                     try_delete_file(output_path.as_path());
-                    err
                 })?;
 
                 match output.status.code() {
@@ -1330,9 +1308,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                     command.stdout(File::create(output_path.as_path())?);
 
-                    let output = command.execute_output().map_err(|err| {
+                    let output = command.execute_output().inspect_err(|_| {
                         try_delete_file(output_path.as_path());
-                        err
                     })?;
 
                     match output.status.code() {
@@ -1369,9 +1346,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                 command.stdout(File::create(output_path.as_path())?);
 
-                let output = command.execute_output().map_err(|err| {
+                let output = command.execute_output().inspect_err(|_| {
                     try_delete_file(output_path.as_path());
-                    err
                 })?;
 
                 match output.status.code() {
@@ -1562,9 +1538,8 @@ pub fn handle_compression(cli_args: CLIArgs) -> anyhow::Result<()> {
 
                     command.arg(output_path.as_path());
 
-                    let output = command.execute_output().map_err(|err| {
+                    let output = command.execute_output().inspect_err(|_| {
                         try_delete_file(output_tmp_path.as_ref());
-                        err
                     })?;
 
                     match output.status.code() {

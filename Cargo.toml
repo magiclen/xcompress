@@ -2,8 +2,8 @@
 name = "xcompress"
 version = "0.12.5"
 authors = ["Magic Len <len@magiclen.org>"]
-edition = "2021"
-rust-version = "1.70"
+edition = "2024"
+rust-version = "1.89"
 repository = "https://github.com/magiclen/xcompress"
 homepage = "https://magiclen.org/xcompress"
 keywords = ["compression", "decompression", "zip", "archive", "tar"]
@@ -21,15 +21,12 @@ strip = true
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 concat-with = "0.2"
-terminal_size = "0.3"
+terminal_size = "0.4"
 
 anyhow = "1"
 
 byte-unit = "5"
-execute = "0.2"
+execute = "0.3"
 num_cpus = "1"
-scanner-rust = "2"
-
-[dependencies.path-absolutize]
-version = "3"
-features = ["once_cell_cache"]
+scanner-rust = "3"
+path-absolutize = { version = "4", features = ["fixed_workdir"] }

@@ -6,7 +6,6 @@ use std::{fs, io, io::Write, path::Path};
 use anyhow::anyhow;
 pub use compression::*;
 pub use decompression::*;
-use execute::generic_array::typenum::U32;
 use scanner_rust::Scanner;
 
 #[inline]
@@ -20,7 +19,7 @@ fn read_password(password: Option<String>) -> anyhow::Result<String> {
                 print!("Password (visible): ");
                 io::stdout().flush()?;
 
-                let mut sc: Scanner<_, U32> = Scanner::new2(io::stdin());
+                let mut sc: Scanner<_, 32> = Scanner::new2(io::stdin());
 
                 sc.next_line()?.ok_or_else(|| anyhow!("Stdin is closed."))
             } else {

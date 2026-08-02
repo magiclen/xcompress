@@ -1,7 +1,7 @@
 use std::{fs, fs::File, io, process};
 
-use anyhow::{anyhow, Context};
-use execute::{command_args, Execute};
+use anyhow::{Context, anyhow};
+use execute::{Execute, command_args};
 use path_absolutize::{Absolutize, CWD};
 
 use super::read_password;
