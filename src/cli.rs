@@ -52,7 +52,7 @@ const DEFAULT_UNZSTD_PATH: &str = "unzstd";
 const DEFAULT_PZSTD_PATH: &str = "pzstd";
 
 #[derive(Debug, Parser)]
-#[command(name = APP_NAME)]
+#[command(name = "xcompress")]
 #[command(term_width = terminal_size().map(|(width, _)| width.0 as usize).unwrap_or(0))]
 #[command(version = CARGO_PKG_VERSION)]
 #[command(author = CARGO_PKG_AUTHORS)]
@@ -224,14 +224,14 @@ pub struct ExecutablePaths {
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_RAR_PATH)]
     #[arg(value_hint = clap::ValueHint::CommandName)]
-    #[arg(help = "Specify the path of your rar executable binary file")]
+    #[arg(help = "Specify the path of your RAR 7+ executable binary file")]
     pub rar_path: String,
 
     #[arg(long)]
     #[arg(global = true)]
     #[arg(default_value = DEFAULT_UNRAR_PATH)]
     #[arg(value_hint = clap::ValueHint::CommandName)]
-    #[arg(help = "Specify the path of your unrar executable binary file")]
+    #[arg(help = "Specify the path of your UNRAR 7+ executable binary file")]
     pub unrar_path: String,
 
     #[arg(long)]
@@ -289,20 +289,20 @@ pub enum CLICommands {
         input_paths:         Vec<PathBuf>,
         #[arg(short, long)]
         #[arg(value_hint = clap::ValueHint::FilePath)]
-        #[arg(help = "Assign a destination of your extracted files. It should be a file path. \
-                      Specify the file extension name in order to determine which archive \
-                      format you want to use. [default archive format: RAR]")]
+        #[arg(help = "Assign a destination archive file. It should be a file path. Specify the \
+                      file extension name in order to determine which archive format you want \
+                      to use. [default archive format: RAR]")]
         output_path:         Option<PathBuf>,
         #[arg(short, long, visible_alias = "best")]
         #[arg(conflicts_with = "fastest_compression")]
-        #[arg(help = "If you are OK about the compression and depression time and want to save \
-                      more disk space and network traffic, it will make the archive file as \
-                      small as possible")]
+        #[arg(help = "If you are OK about the compression and decompression time and want to \
+                      save more disk space and network traffic, it will make the archive file \
+                      as small as possible")]
         best_compression:    bool,
         #[arg(short, long, alias = "fast-compression", visible_alias = "fast")]
         #[arg(conflicts_with = "best_compression")]
         #[arg(help = "If you are OK about using more disk space and network traffic, and want \
-                      to get the fastest compression and depression time, it will make the \
+                      to get the fastest compression and decompression time, it will make the \
                       compression as minimal as possible (even not use compression at all)")]
         fastest_compression: bool,
         #[arg(short = 'd', long)]
@@ -312,7 +312,7 @@ pub enum CLICommands {
         split:               Option<String>,
         #[arg(short, long = "recovery-record", visible_alias = "rr")]
         #[arg(value_parser = clap::value_parser!(u8).range(1..=100))]
-        #[arg(help = "Add data recovery record (Only supports RAR)")]
+        #[arg(help = "Add data recovery record as a percentage (Only supports RAR 7+)")]
         recovery_record:     Option<u8>,
     },
 }
@@ -331,5 +331,16 @@ pub fn get_args() -> CLIArgs {
         Err(err) => {
             err.exit();
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn command_contract() {
+        assert_eq!("xcompress", CLIArgs::command().get_name());
+        assert!(CLIArgs::try_parse_from(["xcompress", "--pxz-path", "pxz", "a", "input"]).is_err());
     }
 }

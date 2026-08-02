@@ -5,6 +5,38 @@ XCompress
 
 XCompress is a free file archiver utility on Linux, providing multi-format archiving to and extracting from ZIP, Z, GZIP, BZIP2, LZ, XZ, LZMA, 7ZIP, TAR, RAR and ZSTD.
 
+## External Tools
+
+XCompress supports the command-line tools provided by the Ubuntu 24.04 LTS official repositories and newer compatible versions. Install the complete supported toolset with:
+
+```bash
+sudo add-apt-repository multiverse
+sudo apt install ncompress zip unzip gzip pigz bzip2 lbzip2 pbzip2 lzip lunzip plzip xz-utils 7zip tar rar unrar zstd
+```
+
+| Package or tool | Minimum version | Executables |
+| --- | ---: | --- |
+| ncompress | 5.0 | `compress` |
+| Info-ZIP Zip / UnZip | 3.0 / 6.0 | `zip`, `unzip` |
+| gzip / pigz | 1.12 / 2.8 | `gzip`, `gunzip`, `pigz` |
+| bzip2 / lbzip2 / pbzip2 | 1.0.8 / 2.5 / 1.1.13 | `bzip2`, `bunzip2`, `lbzip2`, `pbzip2` |
+| lzip / lunzip / plzip | 1.24.1 / 1.14 / 1.11 | `lzip`, `lunzip`, `plzip` |
+| XZ Utils | 5.4.5 | `xz`, `unxz`, `lzma`, `unlzma` |
+| 7-Zip | 23.01 | `7z` |
+| GNU tar | 1.35 | `tar` |
+| RAR / UNRAR | 7.00 / 7.0.7 | `rar`, `unrar` |
+| Zstandard | 1.5.5 | `zstd`, `unzstd`, `pzstd` |
+
+Parallel alternatives are used when available and fall back to their standard implementations. Custom executable paths are supported, but versions older than this baseline are not supported.
+
+## Safety Notes
+
+- Existing output files are replaced only after a new archive or decompressed file is complete.
+- Split archives are staged as a complete volume set. Replacing multiple volume files cannot be fully atomic across a power loss, but a controlled publication failure restores the previous set when possible.
+- Archive outputs cannot be the same as an input or be created inside an input path.
+- Archive inputs are stored by base name. Multiple inputs with the same base name are rejected for 7Z and ZIP archives.
+- Passing a password value on the command line can expose it in parent and child process arguments. Use `--password` without a value for hidden terminal input. Passwords read from a terminal or pipe can still appear in child process arguments because of external tool limitations.
+
 ## Help
 
 ```
@@ -29,7 +61,7 @@ Commands:
 Options:
   -q, --quiet                          Make programs not print anything on the screen
   -s, --single-thread                  Use only one thread
-  -p, --password [<PASSWORD>]          Set password for your archive file. (Only supports 7Z, ZIP and RAR) Set an empty string to read a password from stdin
+  -p, --password [<PASSWORD>]          Set password for your archive file. (Only supports 7Z, ZIP and RAR) Password values can be visible in process arguments. Set an empty string to read a password from stdin
       --compress-path <COMPRESS_PATH>  Specify the path of your compress executable binary file [default: compress]
       --zip-path <ZIP_PATH>            Specify the path of your zip executable binary file [default: zip]
       --unzip-path <UNZIP_PATH>        Specify the path of your unzip executable binary file [default: unzip]
@@ -45,13 +77,12 @@ Options:
       --plzip-path <PLZIP_PATH>        Specify the path of your plzip executable binary file [default: plzip]
       --xz-path <XZ_PATH>              Specify the path of your xz executable binary file [default: xz]
       --unxz-path <UNXZ_PATH>          Specify the path of your unxz executable binary file [default: unxz]
-      --pxz-path <PXZ_PATH>            Specify the path of your pxz executable binary file [default: pxz]
       --lzma-path <LZMA_PATH>          Specify the path of your lzma executable binary file [default: lzma]
       --unlzma-path <UNLZMA_PATH>      Specify the path of your unlzma executable binary file [default: unlzma]
       --7z-path <7Z_PATH>              Specify the path of your 7z executable binary file [default: 7z]
       --tar-path <TAR_PATH>            Specify the path of your tar executable binary file [default: tar]
-      --rar-path <RAR_PATH>            Specify the path of your rar executable binary file [default: rar]
-      --unrar-path <UNRAR_PATH>        Specify the path of your unrar executable binary file [default: unrar]
+      --rar-path <RAR_PATH>            Specify the path of your RAR 7+ executable binary file [default: rar]
+      --unrar-path <UNRAR_PATH>        Specify the path of your UNRAR 7+ executable binary file [default: unrar]
       --zstd-path <ZSTD_PATH>          Specify the path of your zstd executable binary file [default: zstd]
       --unzstd-path <UNZSTD_PATH>      Specify the path of your unzstd executable binary file [default: unzstd]
       --pzstd-path <PZSTD_PATH>        Specify the path of your pzstd executable binary file [default: pzstd]
