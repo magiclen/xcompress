@@ -242,11 +242,21 @@ fn volume_member(
         },
         VolumeFormat::Rar => {
             let stem = Path::new(base_name).file_stem()?.as_bytes();
-            file_name_bytes.strip_prefix(stem)?.strip_prefix(b".part")?.strip_suffix(b".rar")
+            strip_suffix_ignore_ascii_case(
+                file_name_bytes.strip_prefix(stem)?.strip_prefix(b".part")?,
+                b".rar",
+            )
         },
     }?;
 
     parse_number(number).map(VolumeMember::Number)
+}
+
+fn strip_suffix_ignore_ascii_case<'a>(value: &'a [u8], suffix: &[u8]) -> Option<&'a [u8]> {
+    let split = value.len().checked_sub(suffix.len())?;
+    let (value, ending) = value.split_at(split);
+
+    ending.eq_ignore_ascii_case(suffix).then_some(value)
 }
 
 fn parse_number(number: &[u8]) -> Option<usize> {
@@ -430,6 +440,14 @@ mod tests {
             volume_member(
                 OsStr::new("archive.part3.rar"),
                 OsStr::new("archive.rar"),
+                VolumeFormat::Rar
+            )
+        );
+        assert_eq!(
+            Some(VolumeMember::Number(4)),
+            volume_member(
+                OsStr::new("archive.part4.RAR"),
+                OsStr::new("archive.RAR"),
                 VolumeFormat::Rar
             )
         );
